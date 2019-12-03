@@ -278,7 +278,7 @@ bool CShape::ValidateBasics(ShapeValidityCheck& failedCheck, CString& errMsg)
 {
 	if (_shp->get_PointCount() == 0)
 	{
-		errMsg = "Shape hasn't got points";
+		errMsg = L"形状没有获取到点";
 		failedCheck = NoPoints;
 		return false;
 	}
@@ -289,7 +289,7 @@ bool CShape::ValidateBasics(ShapeValidityCheck& failedCheck, CString& errMsg)
 	{
 		if (_shp->get_PartCount() == 0)
 		{
-			errMsg = "Shape hasn't got parts";
+			errMsg = L"形状没有获取到部件";
 			failedCheck = NoParts;
 			return false;
 		}
@@ -303,7 +303,7 @@ bool CShape::ValidateBasics(ShapeValidityCheck& failedCheck, CString& errMsg)
 	{
 		if (_shp->get_PointCount() < minPointCount) 
 		{
-			errMsg = "Shape doesn't have enough points for its type.";
+			errMsg = L"该类型的形状没有获取到足够的点";
 			failedCheck = NotEnoughPoints;
 			return false;
 		}
@@ -316,7 +316,7 @@ bool CShape::ValidateBasics(ShapeValidityCheck& failedCheck, CString& errMsg)
 			int count = end_part - beg_part + 1;
 			if (count < minPointCount) 
 			{
-				errMsg = "A part doesn't have enough points for a given shape type.";
+				errMsg = L"对于指定的形状类型，部件没有获取到足够的点";
 				failedCheck = EmptyParts;
 				return false;
 			}
@@ -338,7 +338,7 @@ bool CShape::ValidateBasics(ShapeValidityCheck& failedCheck, CString& errMsg)
 
 			if (x1 != x2 || y1 != y2)
 			{
-				errMsg = "The first and the last point of the polygon part must be the same";
+				errMsg = L"对于多边形部件，第一个点和最后一个点必须是一致的";
 				failedCheck = FirstAndLastPointOfPartMatch;
 				return false;
 			}
@@ -358,7 +358,7 @@ bool CShape::ValidateBasics(ShapeValidityCheck& failedCheck, CString& errMsg)
 				VARIANT_BOOL ret;
 				double x, y;
 				this->get_XY(0, &x, &y, &ret);
-				errMsg.Format("Polygon must be clockwise [%f %f]", x, y);
+				errMsg.Format("多边形必须是顺时针方向的 [%f %f]", x, y);
 				failedCheck = DirectionOfPolyRings;
 				return false;
 			}
@@ -387,7 +387,7 @@ STDMETHODIMP CShape::get_IsValid(VARIANT_BOOL* retval)
 	OGRGeometry* oGeom = OgrConverter::ShapeToGeometry(this);
 	if (oGeom == NULL) 
 	{
-		_isValidReason = "Failed to convert to OGR geometry";
+		_isValidReason = L"转换成OGR几何形状失败";
 		return S_OK;
 	}
 
@@ -400,7 +400,7 @@ STDMETHODIMP CShape::get_IsValid(VARIANT_BOOL* retval)
 
 	if (hGeosGeom == NULL)
 	{
-		_isValidReason = "Failed to convert to GEOS geometry";
+		_isValidReason = L"转换成GEOS几何形状失败";
 		return S_OK;
 	}
 
