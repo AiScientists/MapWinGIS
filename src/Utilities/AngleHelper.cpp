@@ -24,7 +24,7 @@ CStringW AngleHelper::FormatAngle(double angle,
 	}
 
 	if (angleType == tkAngleFormat::afDegrees) {
-		s.Format(format + L"%.1f", angle);		//L"%.1f?
+		s.Format(format + L"°", angle);		//L"%.1f?
 		return s;
 	}
 
