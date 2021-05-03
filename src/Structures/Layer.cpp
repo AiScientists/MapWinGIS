@@ -376,10 +376,6 @@ UINT OgrAsyncLoadingThreadProc(LPVOID pParam)
 			OGRLayer * ds = ((COgrLayer*)ogr)->GetDatasource();
 			ULONG count = ogr->Release();
 
-			CComBSTR expr;
-			ogr->get_LabelExpression(&expr);
-			loader->LabelExpression = OLE2W(expr);
-
 			bool success = Ogr2RawData::Layer2RawData(ds, &options->extents, loader, options->task);
 
             // Fire event for this task:
@@ -433,15 +429,13 @@ void Layer::LoadAsync(IMapViewCallback* mapView, Extent extents, long layerHandl
 //*		UpdateShapefile()
 //***********************************************************************
 void Layer::UpdateShapefile()
-{
-    if (!IsDynamicOgrLayer())
-        return;
+ {
+	if (!IsDynamicOgrLayer())
+		return;
 
-    // Get the OGR layer:
     IOgrLayer* layer = NULL;
-    if (!QueryOgrLayer(&layer))
-        return;
-
+	if (!QueryOgrLayer(&layer))
+		return;
     ((COgrLayer*)layer)->UpdateShapefileFromOGRLoader();
 }
 

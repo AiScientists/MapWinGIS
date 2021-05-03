@@ -93,6 +93,7 @@ bool CShape::put_RawData(char* data, int recordLength)
 	}
 
 	_shp = wrapper;
+	ClearLabelPositionCache();
 	return true;
 }
 
@@ -222,7 +223,8 @@ STDMETHODIMP CShape::Create(ShpfileType ShpType, VARIANT_BOOL *retval)
 	}
 
 	_shp = wrapper;
-	
+	ClearLabelPositionCache();
+
 	*retval = VARIANT_TRUE;
 	return S_OK;
 }
@@ -253,6 +255,8 @@ STDMETHODIMP CShape::put_ShapeType(ShpfileType newVal)
 		{
 			ErrorMessage(_shp->get_LastErrorCode());
 		}
+		else
+			ClearLabelPositionCache();
 	}
 	else 
 	{
@@ -265,6 +269,7 @@ STDMETHODIMP CShape::put_ShapeType(ShpfileType newVal)
 		else {
 			delete _shp;
 			_shp = shpNew;
+			ClearLabelPositionCache();
 		}
 	}
 
@@ -384,20 +389,7 @@ STDMETHODIMP CShape::get_IsValid(VARIANT_BOOL* retval)
 	// -----------------------------------------------
 	//  check through GEOS (common for both modes)
 	// -----------------------------------------------
-	OGRGeometry* oGeom = OgrConverter::ShapeToGeometry(this);
-	if (oGeom == NULL) 
-	{
-		_isValidReason = L"转换成OGR几何形状失败";
-		return S_OK;
-	}
-
-	// added code
-	GEOSGeom hGeosGeom = NULL;	
-	
-	hGeosGeom = GeosHelper::ExportToGeos(oGeom);
-
-	OGRGeometryFactory::destroyGeometry(oGeom);
-
+    GEOSGeom hGeosGeom = GeosConverter::ShapeToGeom(this);
 	if (hGeosGeom == NULL)
 	{
 		_isValidReason = L"转换成GEOS几何形状失败";
@@ -457,6 +449,8 @@ STDMETHODIMP CShape::put_Part(long PartIndex, long newVal)
 	{
 		ErrorMessage(_shp->get_LastErrorCode());
 	}
+	else
+		ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -487,6 +481,7 @@ STDMETHODIMP CShape::InsertPart(long PointIndex, long *PartIndex, VARIANT_BOOL *
 	{
 		ErrorMessage(_shp->get_LastErrorCode());
 	}
+	ClearLabelPositionCache();
 	return S_OK;
 }
 	
@@ -502,6 +497,7 @@ STDMETHODIMP CShape::DeletePart(long PartIndex, VARIANT_BOOL *retval)
 	{
 		ErrorMessage(_shp->get_LastErrorCode());
 	}
+	ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -582,6 +578,7 @@ STDMETHODIMP CShape::ReversePointsOrder(long PartIndex, VARIANT_BOOL* retval)
 	_shp->ReversePoints(beg_part, end_part);
 
 	*retval = VARIANT_TRUE;
+	ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -676,6 +673,8 @@ STDMETHODIMP CShape::put_Point(long PointIndex, IPoint *newVal)
 		{
 			ErrorMessage(_shp->get_LastErrorCode());
 		}
+		else
+			ClearLabelPositionCache();
 	}
 	return S_OK;
 }
@@ -692,6 +691,7 @@ STDMETHODIMP CShape::InsertPoint(IPoint *NewPoint, long *PointIndex, VARIANT_BOO
 	{
 		ErrorMessage(_shp->get_LastErrorCode());
 	}
+	ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -707,6 +707,7 @@ STDMETHODIMP CShape::DeletePoint(long PointIndex, VARIANT_BOOL *retval)
 	{
 		ErrorMessage(_shp->get_LastErrorCode());
 	}
+	ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -731,6 +732,8 @@ STDMETHODIMP CShape::put_XY(LONG pointIndex, double x, double y, VARIANT_BOOL* r
 	{
 		ErrorMessage(_shp->get_LastErrorCode());
 	}
+	else
+		ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -745,6 +748,8 @@ STDMETHODIMP CShape::put_M(LONG pointIndex, double m, VARIANT_BOOL* retVal)
 	{
 		ErrorMessage(_shp->get_LastErrorCode());
 	}
+	else
+		ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -759,6 +764,8 @@ STDMETHODIMP CShape::put_Z(LONG pointIndex, double z, VARIANT_BOOL* retVal)
 	{
 		ErrorMessage(_shp->get_LastErrorCode());
 	}
+	else
+		ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -1253,6 +1260,18 @@ STDMETHODIMP CShape::Within(IShape* Shape, VARIANT_BOOL* retval)
 	AFX_MANAGE_STATE(AfxGetStaticModuleState())
 	this->Relates(Shape, srWithin, retval);
 	return S_OK;
+}
+STDMETHODIMP CShape::Covers(IShape* Shape, VARIANT_BOOL* retval)
+{
+    AFX_MANAGE_STATE(AfxGetStaticModuleState())
+    this->Relates(Shape, srCovers, retval);
+    return S_OK;
+}
+STDMETHODIMP CShape::CoveredBy(IShape* Shape, VARIANT_BOOL* retval)
+{
+    AFX_MANAGE_STATE(AfxGetStaticModuleState())
+    this->Relates(Shape, srCoveredBy, retval);
+    return S_OK;
 }
 
 // *************************************************************
@@ -1802,6 +1821,8 @@ STDMETHODIMP CShape::CreateFromString(BSTR Serialized, VARIANT_BOOL *retval)
 
 			next = next.Mid(next.Find("|")+1);
 		}
+
+		ClearLabelPositionCache();
 		*retval = VARIANT_TRUE;
 	}
 	return S_OK;
@@ -1939,6 +1960,7 @@ STDMETHODIMP CShape::CopyFrom(IShape* source, VARIANT_BOOL* retVal)
 				target->put_Z(i, z, &vb);
 			}
 		}
+		ClearLabelPositionCache();
 		*retVal = VARIANT_TRUE;
 	}
 	return S_OK;
@@ -2056,6 +2078,15 @@ void CShape::get_LabelPosition(tkLabelPositioning method, double& x, double& y, 
 	x = y = rotation = 0.0;
 	if (method == lpNone)
 		return;
+
+	// If previous call was cached, return those values
+	if (method == labelPositioning && orientation == labelOrientation)
+	{
+		x = labelX;
+		y = labelX;
+		rotation = labelRotation;
+		return;
+	}
 
 	IPoint* pnt = NULL;
 	ShpfileType shpType;
@@ -2194,7 +2225,31 @@ void CShape::get_LabelPosition(tkLabelPositioning method, double& x, double& y, 
 		// first point, last point, point closest to center of mass;
 		this->get_XY(0, &x, &y, &vbretval);
 	}
+
+	// Cache values:
+	labelPositioning = method;
+	labelOrientation = orientation;
+	labelX = x;
+	labelY = y;
+	labelRotation = rotation;
+
 	return;
+}
+
+
+// ********************************************************************
+//		ClearLabelPositionCache()  
+// ********************************************************************
+void CShape::ClearLabelPositionCache()
+{
+	if (labelPositioning == tkLabelPositioning::lpNone)
+		return;
+
+	labelPositioning = tkLabelPositioning::lpNone;
+	labelOrientation = tkLineLabelOrientation::lorParallel;
+	labelX = 0;
+	labelY = 0;
+	labelRotation = 0;
 }
 
 // ********************************************************************
@@ -2283,6 +2338,7 @@ STDMETHODIMP CShape::ImportFromBinary(VARIANT bytesArray, VARIANT_BOOL* retVal)
 	
 	*retVal = result ? VARIANT_TRUE : VARIANT_FALSE;
 	SafeArrayUnaccessData(bytesArray.parray);
+	ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -2348,6 +2404,7 @@ bool CShape::FixupShapeCore(ShapeValidityCheck validityCheck)
 					}
 				}
 			}
+			ClearLabelPositionCache();
 			return true;
 		default: 
 			return false;		// not implemented
@@ -2362,7 +2419,7 @@ STDMETHODIMP CShape::FixUp(IShape** retval)
 	AFX_MANAGE_STATE(AfxGetStaticModuleState());
 	
 	FixUp2(umMeters, retval);
-	
+
 	return S_OK;
 }
 
@@ -2453,6 +2510,7 @@ STDMETHODIMP CShape::AddPoint(double x, double y, long* pointIndex)
 	AFX_MANAGE_STATE(AfxGetStaticModuleState());
 	bool success = _shp->InsertPointXY(_shp->get_PointCount(), x, y);
 	*pointIndex = success ? _shp->get_PointCount() - 1 : -1;
+	ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -2572,7 +2630,7 @@ STDMETHODIMP CShape::ExportToWKT(BSTR * retVal)
 	if (geom != NULL) 
 	{
 		char* s;
-		geom->exportToWkt(&s);
+		geom->exportToWkt(&s, OGRwkbVariant::wkbVariantIso);
 		(*retVal) = A2BSTR(s);
 		OGRGeometryFactory::destroyGeometry(geom);
         // allocated in GDAL; free using CPLFree
@@ -2606,7 +2664,8 @@ STDMETHODIMP CShape::ImportFromWKT(BSTR Serialized, VARIANT_BOOL *retVal)
 	{
 		// if there is a geometry collection only the first shape will be taken
 		std::vector<IShape*> shapes;
-		if (OgrConverter::GeometryToShapes(oGeom, &shapes, true))
+		// in case geometry is both measured and 3D, let 3D govern
+		if (OgrConverter::GeometryToShapes(oGeom, &shapes, oGeom->IsMeasured() && !oGeom->Is3D()))
 		{
 			if (shapes.size() > 0 && shapes[0])
 			{
@@ -2700,6 +2759,7 @@ STDMETHODIMP CShape::Move(DOUBLE xProjOffset, DOUBLE yProjOffset)
 			put_XY(i, x + xProjOffset, y + yProjOffset, &vb);
 		}
 	}
+	ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -2731,6 +2791,7 @@ STDMETHODIMP CShape::Rotate(DOUBLE originX, DOUBLE originY, DOUBLE angle)
 			put_XY(i, x, y, &vb);
 		}
 	}
+	ClearLabelPositionCache();
 	return S_OK;
 }
 
@@ -2866,6 +2927,7 @@ STDMETHODIMP CShape::Clear()
 	AFX_MANAGE_STATE(AfxGetStaticModuleState());
 
 	_shp->Clear();
+	ClearLabelPositionCache();
 
 	return S_OK;
 }

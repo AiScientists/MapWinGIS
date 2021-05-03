@@ -674,6 +674,16 @@ namespace MapWinGIS
         }
 
         /// <summary>
+        /// Gets or sets an expression to calculate the rotation of the point symbol in degrees.
+        /// When this is set it takes precedence over the PointRotation property.
+        /// </summary>
+        public double PointRotationExpression
+        {
+            get { throw new NotImplementedException(); }
+            set { throw new NotImplementedException(); }
+        }
+
+        /// <summary>
         /// Gets or sets the type of reflection to apply to the point symbol.
         /// </summary>
         /// <remarks>This value is used when ShapeDrawingOptions.PointType is equal to ptSymbolFontCharacter or ptSymbolPicture.</remarks>
@@ -910,6 +920,28 @@ namespace MapWinGIS
         /// </summary>
         /// \new493 Added in version 4.9.3
         public double MinVisibleScale
+        {
+            get { throw new NotImplementedException(); }
+            set { throw new NotImplementedException(); }
+        }
+
+        /// <summary>
+        /// Gets or sets maximum map zoom at which the category is visible 
+        /// when ShapeDrawingOptions.DynamicVisibility is set to true.
+        /// </summary>
+        /// \new52 Added in version 5.2
+        public double MaxVisibleZoom
+        {
+            get { throw new NotImplementedException(); }
+            set { throw new NotImplementedException(); }
+        }
+
+        /// <summary>
+        /// Gets or sets minimum map zoom at which the category is visible
+        /// when ShapeDrawingOptions.DynamicVisibility is set to true.
+        /// </summary>
+        /// \new52 Added in version 5.2
+        public double MinVisibleZoom
         {
             get { throw new NotImplementedException(); }
             set { throw new NotImplementedException(); }

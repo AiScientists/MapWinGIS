@@ -226,12 +226,14 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 		parts.push_back(new Gdiplus::Rect(length2, barHeight / 2 - yPadding, 0, valHeight));
 	}
 
-	for (size_t i = 0; i < parts.size(); i++) {
-		g->FillRectangle(&_brushWhite, parts[i]->X - 2, parts[i]->Y - 2, parts[i]->Width + 4, parts[i]->Height + 4);
+	for(size_t i = 0; i < parts.size(); i++)				
+	{
+		g->FillRectangle(_brushWhite, parts[i]->X - 2, parts[i]->Y - 2, parts[i]->Width + 4, parts[i]->Height + 4);
 	}
 
-	for (size_t i = 0; i < parts.size(); i++) {
-		g->FillRectangle(&_brushBlack, parts[i]->X - 1, parts[i]->Y - 1, parts[i]->Width + 2, parts[i]->Height + 2);
+	for(size_t i = 0; i < parts.size(); i++)				
+	{
+		g->FillRectangle(_brushBlack, parts[i]->X - 1, parts[i]->Y - 1, parts[i]->Width + 2, parts[i]->Height + 2);
 	}
 
 	for (size_t i = 0; i < parts.size(); i++) {
@@ -255,30 +257,32 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 	if (_scalebarUnits != GoogleStyle) {
 		s.Format(L"0");
 		Gdiplus::PointF point(xPadding + 4.0f, -4.0f);
-		DrawStringWithShade(g, s, &font, point, &_brushBlack, &_brushWhite);
-
+		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
+			
 		// max
 		FormatUnits(s, step, power, count);
 		point.X = (Gdiplus::REAL)(step * count / unitsPerPixel + xPadding + 3 + 1.0f);
 		point.Y = -4.0f;
-		DrawStringWithShade(g, s, &font, point, &_brushBlack, &_brushWhite);
-
+		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
+			
 		// units
 		s = Utility::GetLocalizedUnitsText(targetUnits);
 		point.X = (Gdiplus::REAL)(step * count / unitsPerPixel + xPadding + 3 + 1.0f);
 		point.Y = (Gdiplus::REAL)(barHeight - yPadding - 12 + 1.0f);
-		DrawStringWithShade(g, s, &font, point, &_brushBlack, &_brushWhite);
-	} else {
+		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
+	}
+	else
+	{
 		// metric
 		USES_CONVERSION;
 		s.Format(L"%s %s", FormatUnits(s, step, power, count), Utility::GetLocalizedUnitsText(targetUnits));
 		Gdiplus::PointF point(xPadding + 8.0f, -10.0f);
-		DrawStringWithShade(g, s, &font, point, &_brushBlack, &_brushWhite);
-
+		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
+			
 		// miles
 		s.Format(L"%s %s", FormatUnits(s, step2, power2, count2), Utility::GetLocalizedUnitsText(targetUnits2));
 		point.Y = 8.0f;
-		DrawStringWithShade(g, s, &font, point, &_brushBlack, &_brushWhite);
+		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
 	}
 	g->SetTextRenderingHint(hint);
 	g->ResetTransform();
@@ -326,12 +330,12 @@ void CMapView::ShowRedrawTime(Gdiplus::Graphics* g, float time, bool layerRedraw
 			_copyrightRect.Y += point.Y;
 
 			//bool active = _copyrightRect.Contains((Gdiplus::REAL)mousePnt.x, (Gdiplus::REAL)mousePnt.y);
-			Gdiplus::SolidBrush* textBrush = _copyrightLinkActive ? &_brushBlue : &_brushBlack;
+			Gdiplus::SolidBrush* textBrush = _copyrightLinkActive ? _brushBlue : _brushBlack;
 			Gdiplus::Font* font = _copyrightLinkActive ? _fontCourierLink : _fontCourierSmall;
 
 			format.SetAlignment(Gdiplus::StringAlignmentCenter);
 			format.SetLineAlignment(Gdiplus::StringAlignmentCenter);
-			g->FillRectangle(&_brushLightGray, _copyrightRect);
+			g->FillRectangle(_brushLightGray, _copyrightRect);
 			g->DrawString(s.GetString(), s.GetLength(), font, _copyrightRect, &format, textBrush);
 		}
 	}
@@ -346,7 +350,7 @@ void CMapView::ShowRedrawTime(Gdiplus::Graphics* g, float time, bool layerRedraw
 		{
 			point.X = (float)(_viewWidth - rect.Width);
 			point.Y = (float)(_viewHeight - rect.Height - _copyrightRect.Height - 3);
-			DrawStringWithShade(g, s, _fontCourierSmall, point, &_brushBlack, &_brushWhite);
+			DrawStringWithShade(g, s, _fontCourierSmall, point, _brushBlack, _brushWhite);
 		}
 	}
 
@@ -363,7 +367,7 @@ void CMapView::ShowRedrawTime(Gdiplus::Graphics* g, float time, bool layerRedraw
 		{
 			point.X = (float)(_viewWidth - rect.Width - 10);
 			point.Y = _showCoordinates != cdmNone ? 10.0f + rect.Height : 10.0f;
-			DrawStringWithShade(g, s, _fontCourier, point, &_brushBlack, &_brushWhite);
+			DrawStringWithShade(g, s, _fontCourier, point, _brushBlack, _brushWhite);
 		}
 	}
 	gstate.RestoreTextRenderingHint(g);
@@ -476,8 +480,8 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 	BOOL highlight = _zoombarParts.PlusButton.PtInRect(pnt);
 	g->TranslateTransform(x, y);
 	DrawGradientShadowForPath(path, g);
-	g->FillPath(&_brushWhite, &path);
-	g->DrawPath(highlight ? &_penDarkGray : &_penGray, &path);
+	g->FillPath(_brushWhite, &path);
+	g->DrawPath( highlight ? _penDarkGray : _penGray, &path);
 	g->SetTransform(&m);
 
 	// lower minus button
@@ -485,17 +489,17 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 	highlight = _zoombarParts.MinusButton.PtInRect(pnt);
 	g->TranslateTransform(x, y + height);
 	DrawGradientShadowForPath(path, g);
-	g->FillPath(&_brushWhite, &path);
-	g->DrawPath(highlight ? &_penDarkGray : &_penGray, &path);
+	g->FillPath(_brushWhite, &path);
+	g->DrawPath(highlight ? _penDarkGray : _penGray, &path);
 	g->SetTransform(&m);
 
 	// plus sign
 	g->SetPixelOffsetMode(Gdiplus::PixelOffsetMode::PixelOffsetModeHighQuality);
-	g->FillRectangle(&_brushGray, x + 5.0f, y + 8.0f, 8.0f, 2.0f);
-	g->FillRectangle(&_brushGray, x + 8.0f, y + 5.0f, 2.0f, 8.0f);
+	g->FillRectangle(_brushGray, x + 5.0f, y + 8.0f, 8.0f, 2.0f);
+	g->FillRectangle(_brushGray, x + 8.0f, y + 5.0f, 2.0f, 8.0f);
 
 	// minus sign
-	g->FillRectangle(&_brushGray, x + 5.0f, y + height + 8.0f, 8.0f, 2.0f);
+	g->FillRectangle(_brushGray, x + 5.0f, y + height + 8.0f, 8.0f, 2.0f);
 
 	g->SetPixelOffsetMode(pixelOffsetMode);
 
@@ -576,9 +580,9 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 			Gdiplus::SolidBrush tooltipBrush(Gdiplus::Color(255, 255, 255)/*Gdiplus::Color(246, 212, 178 )*/);
 			tooltipBox.Inflate(9.0f, 5.0f);
 			g->FillRectangle(&tooltipBrush, tooltipBox);
-			g->DrawRectangle(&_penGray, tooltipBox);
+			g->DrawRectangle(_penGray, tooltipBox);
 			tooltipBox.Inflate(-9.0f, -5.0f);
-			g->DrawString(s, s.GetLength(), _fontArial, tooltipOrigin, &_brushBlack);
+			g->DrawString(s, s.GetLength(), _fontArial, tooltipOrigin, _brushBlack );
 		}
 	}
 
@@ -592,9 +596,9 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 	Gdiplus::GraphicsPath path3;
 	path3.AddRectangle(line);
 	DrawGradientShadowForPath(path3, g);
-
-	g->FillRectangle(&_brushWhite, line);
-	g->DrawRectangle(highlight && !handleHighlight ? &_penDarkGray : &_penGray, line);
+	
+	g->FillRectangle(_brushWhite, line);
+	g->DrawRectangle(highlight && !handleHighlight ? _penDarkGray : _penGray, line);
 
 
 	// notches for zoom levels
@@ -603,7 +607,7 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 	float tempX = x + boxSize / 2.0f - lineWidth / 2.0f + 1;
 	for (int i = 1; i < maxZoom - minZoom; i++) {
 		float tempY = (float)(int)(y + boxSize + lineOffset + step * i + 0.5);
-		g->FillRectangle(&_brushGray, tempX, tempY, 4.0f, 1.0f);
+		g->FillRectangle(_brushGray, tempX, tempY, 4.0f, 1.0f);
 	}
 	g->SetPixelOffsetMode(pixelOffsetMode);
 
@@ -622,15 +626,15 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 	// drawing the handle
 	g->TranslateTransform(x, handleY);		// boxSize/4.0 = center of handle is the position
 	DrawGradientShadowForPath(path2, g);
-	g->FillPath(&_brushWhite, &path2);
-	g->DrawPath(handleHighlight ? &_penDarkGray : &_penGray, &path2);
+	g->FillPath(_brushWhite, &path2);
+	g->DrawPath(handleHighlight ? _penDarkGray : _penGray, &path2);
 	g->SetTransform(&m);
 
 	// minus sign
 	g->SetPixelOffsetMode(Gdiplus::PixelOffsetMode::PixelOffsetModeHighQuality);
-	g->FillRectangle(&_brushGray, x + 5.0f, handleY + 4.0f, 8.0f, 2.0f);
+	g->FillRectangle(_brushGray, x + 5.0f, handleY + 4.0f, 8.0f, 2.0f);
 	g->SetPixelOffsetMode(pixelOffsetMode);
-	_penDarkGray.SetWidth(1.0f);
+	_penDarkGray->SetWidth(1.0f);
 }
 
 // ****************************************************************

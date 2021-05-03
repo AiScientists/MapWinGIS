@@ -220,7 +220,7 @@ bool CShapefile::GetVisibilityFlags(map<long, BYTE> &flags)
         return false;
 
     // copy visibility flags into provided map, keyed by OGR_FID
-    VARIANT_BOOL vb;
+
     // iterate all OGR Mappings
     auto iter = _ogrFid2ShapeIndex.begin();
     while (iter != _ogrFid2ShapeIndex.end())
@@ -244,7 +244,7 @@ bool CShapefile::SetVisibilityFlags(map<long, BYTE> &flags)
         return false;
 
     // copy the specified visibility flags into the current shape data
-    VARIANT_BOOL vb;
+
     // iterate all OGR Mappings
     auto iter = _ogrFid2ShapeIndex.begin();
     while (iter != _ogrFid2ShapeIndex.end())
@@ -809,6 +809,8 @@ HRESULT CShapefile::CreateNewCore(BSTR ShapefileName, ShpfileType ShapefileType,
             }
             else
             {
+
+                ((CTableClass*)_table)->InjectShapefile(this);
                 _shpfiletype = ShapefileType;
                 _isEditingShapes = true;
                 _sourceType = sstInMemory;
@@ -880,6 +882,7 @@ HRESULT CShapefile::CreateNewCore(BSTR ShapefileName, ShpfileType ShapefileType,
         }
         else
         {
+            ((CTableClass*)_table)->InjectShapefile(this);
             _shpfileName = tmp_shpfileName;
             _shxfileName = tmp_shpfileName.Left(tmp_shpfileName.GetLength() - 3) + "shx";
             _dbffileName = tmp_shpfileName.Left(tmp_shpfileName.GetLength() - 3) + "dbf";
@@ -2459,7 +2462,7 @@ bool CShapefile::DeserializeCore(VARIANT_BOOL LoadSelection, CPLXMLNode* node)
     _expression = A2BSTR(s);
 
     s = CPLGetXMLValue(node, "UseQTree", nullptr);
-    _useQTree = s != "" ? (BOOL)atoi(s.GetString()) : FALSE;
+    put_UseQTree(s != "" ? (BOOL)atoi(s.GetString()) : FALSE);
 
     s = CPLGetXMLValue(node, "CollisionMode", nullptr);
     _collisionMode = s != "" ? (tkCollisionMode)atoi(s.GetString()) : LocalList;
@@ -2904,8 +2907,9 @@ bool CShapefile::ReprojectCore(IGeoProjection* newProjection, LONG* reprojectedC
         reverseOgrFidMapping.clear();
     }
 
-    // function result will be based on successful projection setting
-    vb = VARIANT_FALSE;
+    // function result will be based on successful projection setting;
+    // BUT if there were no shapes to reproject, consider it a success
+    vb = (numShapes == 0) ? VARIANT_TRUE : VARIANT_FALSE;
     // if at least some rows were reprojected...
     if (*reprojectedCount > 0)
     {
@@ -3101,13 +3105,6 @@ STDMETHODIMP CShapefile::GetRelatedShapes2(IShape* referenceShape, tkSpatialRela
 void CShapefile::GetRelatedShapeCore(IShape* referenceShape, long referenceIndex, tkSpatialRelation relation,
                                      VARIANT* resultArray, VARIANT_BOOL* retval)
 {
-    if (relation == srDisjoint)
-    {
-        // TODO: implement
-        ErrorMessage(tkMETHOD_NOT_IMPLEMENTED);
-        return;
-    }
-
     // rather than generate geometries for all shapes,
     // only generate for those within qtree extent (see below)
     //this->ReadGeosGeometries(VARIANT_FALSE);
@@ -3124,69 +3121,76 @@ void CShapefile::GetRelatedShapeCore(IShape* referenceShape, long referenceIndex
         std::vector<int> shapes = this->_qtree->GetNodes(query);
         std::vector<int> arr;
 
-        // generate GEOS geometries only for shapes within qtree extent
-        for (size_t i = 0; i < shapes.size(); i++)
-            // minimize work by 'select'ing necessary shapes
-            this->put_ShapeSelected(shapes[i], VARIANT_TRUE);
-        // now generate only for 'select'ed shapes
-        this->ReadGeosGeometries(VARIANT_TRUE);
-        // don't leave shapes 'select'ed
-        for (size_t i = 0; i < shapes.size(); i++)
-            this->put_ShapeSelected(shapes[i], VARIANT_FALSE);
-
-        GEOSGeom geomBase;
-        if (referenceIndex > 0)
+        // were any shapes returned ?
+        if (shapes.size() > 0)
         {
-            geomBase = _shapeData[referenceIndex]->geosGeom;
-        }
-        else
-        {
-            geomBase = GeosConverter::ShapeToGeom(referenceShape);
-        }
-
-        if (geomBase)
-        {
+            // generate GEOS geometries only for shapes within qtree extent
+            std::set<int> list;
             for (size_t i = 0; i < shapes.size(); i++)
-            {
-                if (i == referenceIndex)
-                    continue; // it doesn't make sense to compare the shape with itself
+                    // add subset of indices to local list
+                list.insert(shapes[i]);
+            // now generate only for list of shapes
+            this->ReadGeosGeometries(list);
 
-                // ReSharper disable once CppLocalVariableMayBeConst
-                GEOSGeom geom = _shapeData[shapes[i]]->geosGeom;
-                if (geom != nullptr)
-                {
-                    char res = 0;
-                    switch (relation)
-                    {
-                    case srContains: res = GeosHelper::Contains(geomBase, geom);
-                        break;
-                    case srCrosses: res = GeosHelper::Crosses(geomBase, geom);
-                        break;
-                    case srEquals: res = GeosHelper::Equals(geomBase, geom);
-                        break;
-                    case srIntersects: res = GeosHelper::Intersects(geomBase, geom);
-                        break;
-                    case srOverlaps: res = GeosHelper::Overlaps(geomBase, geom);
-                        break;
-                    case srTouches: res = GeosHelper::Touches(geomBase, geom);
-                        break;
-                    case srWithin: res = GeosHelper::Within(geomBase, geom);
-                        break;
-                    case srDisjoint: break;
-                    default: ;
-                    }
-                    if (res)
-                    {
-                        arr.push_back(shapes[i]);
-                    }
-                }
+            GEOSGeom geomBase;
+            if (referenceIndex >= 0)
+            {
+                geomBase = _shapeData[referenceIndex]->geosGeom;
+            }
+            else
+            {
+                geomBase = GeosConverter::ShapeToGeom(referenceShape);
             }
 
-            if (referenceIndex == -1)
-                GeosHelper::DestroyGeometry(geomBase);
-            // the geometry was created in this function so it must be destroyed
-        }
+            if (geomBase)
+            {
+                for (size_t i = 0; i < shapes.size(); i++)
+                {
+                    if (shapes[i] == referenceIndex)
+                        continue; // it doesn't make sense to compare the shape with itself
 
+                    // ReSharper disable once CppLocalVariableMayBeConst
+                    GEOSGeom geom = _shapeData[shapes[i]]->geosGeom;
+                    if (geom != nullptr)
+                    {
+                        char res = 0;
+                        switch (relation)
+                        {
+                        case srContains: res = GeosHelper::Contains(geomBase, geom);
+                            break;
+                        case srCrosses: res = GeosHelper::Crosses(geomBase, geom);
+                            break;
+                        case srEquals: res = GeosHelper::Equals(geomBase, geom);
+                            break;
+                        case srIntersects: res = GeosHelper::Intersects(geomBase, geom);
+                            break;
+                        case srOverlaps: res = GeosHelper::Overlaps(geomBase, geom);
+                            break;
+                        case srTouches: res = GeosHelper::Touches(geomBase, geom);
+                            break;
+                        case srWithin: res = GeosHelper::Within(geomBase, geom);
+                            break;
+                        case srCovers: res = GeosHelper::Covers(geomBase, geom);
+                            break;
+                        case srCoveredBy: res = GeosHelper::CoveredBy(geomBase, geom);
+                            break;
+                        default:
+                        case srDisjoint: res = GeosHelper::Disjoint(geomBase, geom);
+                            break;
+                        }
+                        if (res)
+                        {
+                            arr.push_back(shapes[i]);
+                        }
+                    }
+                }
+
+                if (referenceIndex == -1)
+                    GeosHelper::DestroyGeometry(geomBase);
+                // the geometry was created in this function so it must be destroyed
+            }
+        }
+        // return result as SafeArray
         *retval = Templates::Vector2SafeArray(&arr, VT_I4, resultArray);
     }
 

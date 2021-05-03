@@ -100,6 +100,7 @@ void COgrLayer::UpdateShapefileFromOGRLoader()
 {
     CSingleLock lock(&_loader.ProviderLock, TRUE);
     if (!_shapefile) return;
+	lock.Unlock();
 
     // Wait for tasks to finish loading:
     _loader.AwaitTasks();
@@ -110,8 +111,34 @@ void COgrLayer::UpdateShapefileFromOGRLoader()
     CSingleLock sfLock(&_loader.ShapefileLock, TRUE);
 
     // Grab the loaded data:
+	if (!_loader.HasData())
+		return;
     vector<ShapeRecordData*> data = _loader.FetchData();
-    if (data.size() == 0) return;
+
+	CStringW fid = OgrHelper::OgrString2Unicode(_layer->GetFIDColumn());
+	bool hasFid = fid.GetLength() > 0;
+	((CShapefile*)_shapefile)->HasOgrFidMapping(hasFid);
+
+    // Get the selected OGR FID's to preserve the selection if possible:
+    std::vector<int> selectedShapes = *(ShapefileHelper::GetSelectedIndices(_shapefile));
+    std::vector<CComVariant> selectedOgrFIDs = *(new vector<CComVariant>());
+    if (selectedShapes.size() > 0) 
+    {
+        if (!hasFid) // if we don't have fid, clear
+            selectedShapes.clear();
+
+        long fieldIndex = 0;
+        CComBSTR bstrName(fid);
+        _shapefile->get_FieldIndexByName(bstrName, &fieldIndex);
+
+        for (size_t i = 0; i < selectedShapes.size(); i++)
+        {
+            CComVariant var;
+            _shapefile->get_CellValue(fieldIndex, selectedShapes[i], &var);
+            selectedOgrFIDs.push_back(var);
+        }
+        
+    }    
 
     VARIANT_BOOL vb;
     _shapefile->EditClear(&vb);
@@ -128,11 +155,14 @@ void COgrLayer::UpdateShapefileFromOGRLoader()
     _shapefile->get_Labels(&labels);
     labels->Clear();
 
+	CComPtr<IShapefileCategories> categories = NULL;
+	_shapefile->get_Categories(&categories);
+
+	long count = 0;
     if (table)
     {
         CTableClass* tbl = TableHelper::Cast(table);
         _shapefile->StartEditingShapes(VARIANT_TRUE, NULL, &vb);
-        long count = 0;
         for (size_t i = 0; i < data.size(); i++)
         {
             CComPtr<IShape> shp = NULL;
@@ -146,25 +176,43 @@ void COgrLayer::UpdateShapefileFromOGRLoader()
                 tbl->UpdateTableRow(data[i]->Row, count);
                 data[i]->Row = NULL;   // we no longer own it; it'll be cleared by Shapefile.EditClear
 
+                // Preserve selection accross reloads:
+                CComVariant pVal;
+                tbl->get_CellValue(0, count, &pVal);
+                bool wasSelected = false;
+                for (size_t i = 0; i < selectedOgrFIDs.size(); i++)
+                {
+                    if (selectedOgrFIDs[i] == pVal) {
+                        wasSelected = true;
+                        break;
+                    }
+                }
+                if (wasSelected)
+                    _shapefile->put_ShapeSelected(count, VARIANT_TRUE);
+
+				if (hasFid)
+					((CShapefile*)_shapefile)->MapOgrFid2ShapeIndex(pVal.lVal, count);
+
                 count++;
             }
         }
+
         // inserted shapes were marked as modified, correct this
         ShapefileHelper::ClearShapefileModifiedFlag(_shapefile);
 
         // Stop 'fake' editing session
         _shapefile->StopEditingShapes(VARIANT_TRUE, VARIANT_TRUE, NULL, &vb);
-
-        // Without this, categories are not correctly applied in the drawing function:
-        IShapefileCategories* cat;
-        _shapefile->get_Categories(&cat);
-        cat->ApplyExpressions();
     }
 
     // clean the data
     for (size_t i = 0; i < data.size(); i++) {
         delete data[i];
     }
+
+	categories->ApplyExpressions();
+	labels->ApplyCategories();
+
+	return;
 }
 
 //***********************************************************************
@@ -814,9 +862,21 @@ STDMETHODIMP COgrLayer::SaveChanges(int* savedCount, tkOgrSaveType saveType, VAR
 	}
 
 	{ // Locking provider & shapefile here
+		CSingleLock loadingLock(&_loader.LoadingLock, _dynamicLoading ? TRUE : FALSE);
 		CSingleLock lock(&_loader.ProviderLock, _dynamicLoading ? TRUE : FALSE);
 		CSingleLock sfLock(&_loader.ShapefileLock, _dynamicLoading ? TRUE : FALSE);
-		*savedCount = Shape2Ogr::SaveShapefileChanges(_layer, _shapefile, shapeCmnId, saveType, validateShapes ? true : false, _updateErrors);
+		auto safeToDelete = true;
+		if (_dynamicLoading)
+		{
+			VARIANT_BOOL hasFIDMap;
+			_shapefile->get_HasOgrFidMapping(&hasFIDMap);
+			if (!hasFIDMap)
+				safeToDelete = false; //don't delete when there's no FID map to track them
+		}
+		*savedCount = Shape2Ogr::SaveShapefileChanges(
+			_layer, _shapefile, shapeCmnId, 
+			saveType, validateShapes ? true : false,
+			safeToDelete, _updateErrors);
 	}
 
 	HasLocalChanges(&hasChanges);
@@ -1139,12 +1199,6 @@ CPLXMLNode* COgrLayer::SerializeCore(CString ElementName)
 	Utility::CPLCreateXMLAttributeAndValue(psTree, "SourceQuery", Utility::ConvertToUtf8(_sourceQuery));
 	Utility::CPLCreateXMLAttributeAndValue(psTree, "SourceType", CPLString().Printf("%d", (int)_sourceType));
 	Utility::CPLCreateXMLAttributeAndValue(psTree, "ForUpdate", CPLString().Printf("%d", (int)_forUpdate));
-	if (_loader.LabelExpression.GetLength() > 0)
-		Utility::CPLCreateXMLAttributeAndValue(psTree, "LabelExpression", Utility::ConvertToUtf8(_loader.LabelExpression));
-	if (_loader.LabelPosition != lpNone)
-		Utility::CPLCreateXMLAttributeAndValue(psTree, "LabelPosition", CPLString().Printf("%d", (int)_loader.LabelPosition));
-	if (_loader.LabelOrientation != lorParallel)
-		Utility::CPLCreateXMLAttributeAndValue(psTree, "LabelOrientation", CPLString().Printf("%d", (int)_loader.LabelOrientation));
 	if (_loader.GetMaxCacheCount() != m_globalSettings.ogrLayerMaxFeatureCount)
 		Utility::CPLCreateXMLAttributeAndValue(psTree, "MaxFeatureCount", CPLString().Printf("%d", (int)_loader.GetMaxCacheCount()));
 
@@ -1225,15 +1279,8 @@ bool COgrLayer::DeserializeCore(CPLXMLNode* node)
 bool COgrLayer::DeserializeOptions(CPLXMLNode* node)
 {
 	bool success = true;
-	_loader.LabelExpression = Utility::ConvertFromUtf8(CPLGetXMLValue(node, "LabelExpression", ""));
 
-	CString s = CPLGetXMLValue(node, "LabelPosition", NULL);
-	_loader.LabelPosition = (s != "") ? (tkLabelPositioning)atoi(s.GetString()) : lpNone;
-
-	s = CPLGetXMLValue(node, "LabelOrientation", NULL);
-	_loader.LabelOrientation = (s != "") ? (tkLineLabelOrientation)atoi(s.GetString()) : lorParallel;
-
-	s = CPLGetXMLValue(node, "MaxFeatureCount", NULL);
+    CString s = CPLGetXMLValue(node, "MaxFeatureCount", NULL);
 	_loader.SetMaxCacheCount((s != "") ? atoi(s.GetString()) : m_globalSettings.ogrLayerMaxFeatureCount);
 
 	// let's populate data (in case it was populated before serialization)
@@ -1500,56 +1547,6 @@ STDMETHODIMP COgrLayer::RemoveStyle(BSTR styleName, VARIANT_BOOL* retVal)
 	CStringW name = OLE2W(styleName);
 	bool result = OgrStyleHelper::RemoveStyle(_dataset, GetStyleTableName(), GetLayerName(), name);
 	*retVal = result ? VARIANT_TRUE : VARIANT_FALSE;
-	return S_OK;
-}
-
-// *************************************************************
-//		LabelExpression()
-// *************************************************************
-STDMETHODIMP COgrLayer::get_LabelExpression(BSTR* pVal)
-{
-	AFX_MANAGE_STATE(AfxGetStaticModuleState());
-	USES_CONVERSION;
-	*pVal = W2BSTR(_loader.LabelExpression);
-	return S_OK;
-}
-STDMETHODIMP COgrLayer::put_LabelExpression(BSTR newVal)
-{
-	AFX_MANAGE_STATE(AfxGetStaticModuleState());
-	USES_CONVERSION;
-	_loader.LabelExpression = OLE2W(newVal);
-	return S_OK;
-}
-
-// *************************************************************
-//		LabelPosition()
-// *************************************************************
-STDMETHODIMP COgrLayer::get_LabelPosition(tkLabelPositioning* pVal)
-{
-	AFX_MANAGE_STATE(AfxGetStaticModuleState());
-	*pVal = _loader.LabelPosition;
-	return S_OK;
-}
-STDMETHODIMP COgrLayer::put_LabelPosition(tkLabelPositioning newVal)
-{
-	AFX_MANAGE_STATE(AfxGetStaticModuleState());
-	_loader.LabelPosition = newVal;
-	return S_OK;
-}
-
-// *************************************************************
-//		LabelOrientation()
-// *************************************************************
-STDMETHODIMP COgrLayer::get_LabelOrientation(tkLineLabelOrientation* pVal)
-{
-	AFX_MANAGE_STATE(AfxGetStaticModuleState());
-	*pVal = _loader.LabelOrientation;
-	return S_OK;
-}
-STDMETHODIMP COgrLayer::put_LabelOrientation(tkLineLabelOrientation newVal)
-{
-	AFX_MANAGE_STATE(AfxGetStaticModuleState());
-	_loader.LabelOrientation = newVal;
 	return S_OK;
 }
 
