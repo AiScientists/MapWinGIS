@@ -3792,11 +3792,51 @@ GDALWarpCreateOutput(char **papszSrcFiles, const char *pszFilename,
 						papszSrcFiles[iSrc]);
 			}
 
-			for (int iBand = 0; iBand < nDstBandCount; iBand++) {
-				apeColorInterpretations.push_back(
-					GDALGetRasterColorInterpretation(GDALGetRasterBand(hSrcDS, iBand + 1)));
-			}
-		}
+/* -------------------------------------------------------------------- */
+/*      Get the sourcesrs from the dataset, if not set already.         */
+/* -------------------------------------------------------------------- */
+        if( pszThisSourceSRS == NULL )
+        {
+            const char *pszMethod = CSLFetchNameValue( papszTO, "METHOD" );
+
+            if( GDALGetProjectionRef( hSrcDS ) != NULL 
+                && strlen(GDALGetProjectionRef( hSrcDS )) > 0
+                && (pszMethod == NULL || EQUAL(pszMethod,"GEOTRANSFORM")) )
+                pszThisSourceSRS = GDALGetProjectionRef( hSrcDS );
+            
+            else if( GDALGetGCPProjection( hSrcDS ) != NULL
+                     && strlen(GDALGetGCPProjection(hSrcDS)) > 0 
+                     && GDALGetGCPCount( hSrcDS ) > 1 
+                     && (pszMethod == NULL || EQUALN(pszMethod,"GCP_",4)) )
+                pszThisSourceSRS = GDALGetGCPProjection( hSrcDS );
+            else if( pszMethod != NULL && EQUAL(pszMethod,"RPC") )
+#if GDAL_VERSION_MAJOR >= 3
+                pszThisSourceSRS = SRS_WKT_WGS84_LAT_LONG; //  SRS_WKT_WGS84 macro is no longer declared by default since WKT without AXIS is too ambiguous. Preferred remediation: use SRS_WKT_WGS84_LAT_LONG
+#else
+				pszThisSourceSRS = SRS_WKT_WGS84;
+#endif
+            else
+                pszThisSourceSRS = "";
+        }
+
+        if( pszThisTargetSRS == NULL )
+            pszThisTargetSRS = CPLStrdup( pszThisSourceSRS );
+        
+/* -------------------------------------------------------------------- */
+/*      Create a transformation object from the source to               */
+/*      destination coordinate system.                                  */
+/* -------------------------------------------------------------------- */
+        hTransformArg = 
+            GDALCreateGenImgProjTransformer2( hSrcDS, NULL, papszTO );
+        
+        if( hTransformArg == NULL )
+        {
+            CPLFree( pszThisTargetSRS );
+            GDALClose( hSrcDS );
+            return NULL;
+        }
+        
+        GDALTransformerInfo* psInfo = (GDALTransformerInfo*)hTransformArg;
 
 		/* -------------------------------------------------------------------- */
 		/*      Get the sourcesrs from the dataset, if not set already.         */

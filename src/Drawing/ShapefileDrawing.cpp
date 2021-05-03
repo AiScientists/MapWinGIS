@@ -162,7 +162,7 @@ bool CShapefileDrawer::Draw(const CRect & rcBounds, IShapefile* sf)
 	// --------------------------------------------------------
 	//	 Settings DC/graphics options
 	// --------------------------------------------------------
-	int* qtreeResult;					// results of quad tree selection
+    int* qtreeResult = nullptr;			// results of quad tree selection
 	vector<long>* selectResult = NULL;	// results of spatial index selection
 	int offset;							// position (number) of a shape in the shapefile		
 
@@ -285,22 +285,23 @@ bool CShapefileDrawer::Draw(const CRect & rcBounds, IShapefile* sf)
         // checking once for field specification and index, and 
         // then iterating shapes to set rotation-specific values.
 
-        // is a Rotation field specified ?
-        if (defaultOptions->rotationField.GetLength() > 0)
-        {
-            long idx;
-            CComBSTR bstrName(defaultOptions->rotationField);
-            _shapefile->get_FieldIndexByName(bstrName, &idx);
-            // iterate shapes, set rotation based on field value
-            // NOTE that this uses the existing 'rotation' field,
-            // and thus takes precedence over options-based rotation
-            for (int i = 0; i < _shapeData->size(); i++)
-            {
-                VARIANT rotation;
-                _shapefile->get_CellValue(idx, i, &rotation);
-                (*_shapeData)[i]->rotation = rotation.dblVal;
-            }
-        }
+		// NOTE: the following is superceded by the rotationExpression
+		// is a Rotation field specified ?
+        //if (defaultOptions->rotationField.GetLength() > 0)
+        //{
+        //    long idx;
+        //    CComBSTR bstrName(defaultOptions->rotationField);
+        //    _shapefile->get_FieldIndexByName(bstrName, &idx);
+        //    // iterate shapes, set rotation based on field value
+        //    // NOTE that this uses the existing 'rotation' field,
+        //    // and thus takes precedence over options-based rotation
+        //    for (long i = 0; i < (long)_shapeData->size(); i++)
+        //    {
+        //        VARIANT rotation;
+        //        _shapefile->get_CellValue(idx, i, &rotation);
+        //        (*_shapeData)[i]->rotation = rotation.dblVal;
+        //    }
+        //}
     }
 
 	// --------------------------------------------------------------
@@ -543,8 +544,12 @@ cleaning:
 	
 	if(_useQTree) 
 	{
-		delete[] qtreeResult;
-	}
+        // make sure it was allocated
+        if (qtreeResult)
+        {
+	    	delete[] qtreeResult;
+    	}
+    }
 	else
 	{
 		if (_useSpatialIndex && selectResult)
@@ -570,9 +575,8 @@ void CShapefileDrawer::DrawCategory(CDrawingOptionsEx* options, std::vector<int>
 		return;
 	}
 
-	if (options->dynamicVisibility)
-		if (this->_scale < options->minVisibleScale || this->_scale > options->maxVisibleScale)
-			return;
+	if (!options->IsVisible(this->_scale, this->_currentZoom))
+		return;
 
 	if (_shptype == SHP_POINT || _shptype == SHP_MULTIPOINT)
 		options->_shpType = tkSimpleShapeType::shpPoint;
@@ -781,10 +785,6 @@ void CShapefileDrawer::DrawPointCategory( CDrawingOptionsEx* options, std::vecto
 		Gdiplus::Matrix mtx;
 		mtx.Reset();
 		
-		// font character rotation is set here
-		mtx.Rotate((Gdiplus::REAL)options->rotation);
-		path->Transform(&mtx);
-		if (path2) path2->Transform(&mtx);
 		pntShape = pshPolygon;
 	}
 
@@ -974,13 +974,13 @@ void CShapefileDrawer::DrawPointCategory( CDrawingOptionsEx* options, std::vecto
 				_graphics->TranslateTransform((float)(xInt), (float)(yInt));
 					
                 // see if individual shape has a specified rotation
-                // (set either through shape rotation property, or from rotationField)
+                // (set either through shape rotation property, or from rotationExpression)
 				float angle = (float)((*_shapeData)[points[i].id])->rotation;
 					
 				// if not set explicitly, try to grab it from category
 				if (angle == 0)
 					angle = (float)options->rotation;
-
+				// if any angle is specified, apply it
                 if (angle != 0)
 					_graphics->RotateTransform(angle);
 					
@@ -1008,7 +1008,7 @@ void CShapefileDrawer::DrawPointCategory( CDrawingOptionsEx* options, std::vecto
 					
 				Gdiplus::Rect rect(0, 0, INT(options->bitmapPlus->GetWidth() * options->scaleX), INT(options->bitmapPlus->GetHeight() * options->scaleY));
 
-				if (!drawSelection || m_selectionTransparency <= 255)
+                if (!drawSelection || m_selectionTransparency < 255)
 				{
 					_graphics->DrawImage(options->bitmapPlus, rect, 0, 0, options->bitmapPlus->GetWidth(), options->bitmapPlus->GetHeight(), Gdiplus::UnitPixel, options->imgAttributes);
 				}
@@ -1033,6 +1033,15 @@ void CShapefileDrawer::DrawPointCategory( CDrawingOptionsEx* options, std::vecto
 					_graphics->GetTransform(&mtxInit);
 						
 					_graphics->TranslateTransform(Gdiplus::REAL(xInt), Gdiplus::REAL(yInt));
+
+					// does point have an individual rotation?
+					float angle = (float)((*_shapeData)[points[i].id])->rotation;
+					// if nothing specified, revert to options-level angle
+					if (angle == 0)
+						angle = (float)options->rotation;
+					// if angle is non-zero, apply it
+					if (angle != 0)
+						_graphics->RotateTransform(angle);
 
 					// if reflecting
 					if (options->pointReflectionType != prtNone)
@@ -1709,7 +1718,7 @@ void CShapefileDrawer::DrawPolylinePath(Gdiplus::GraphicsPath* path, CDrawingOpt
 	ILinePattern* pattern = options->linePattern;
 
 	int numLines;
-	options->linePattern->get_Count(&numLines);
+    pattern->get_Count(&numLines);
 	if (numLines == 0)
 		return;
 	
@@ -1722,7 +1731,7 @@ void CShapefileDrawer::DrawPolylinePath(Gdiplus::GraphicsPath* path, CDrawingOpt
 	Gdiplus::PathData* data = new PathData();
 	
 	BYTE transparency;
-	options->linePattern->get_Transparency(&transparency);
+    pattern->get_Transparency(&transparency);
 
 	Gdiplus::Pen* penSelection = NULL;
 	Gdiplus::SolidBrush* brushSelection = NULL;
@@ -1768,6 +1777,7 @@ void CShapefileDrawer::DrawPolylinePath(Gdiplus::GraphicsPath* path, CDrawingOpt
 		}
 		else if (type == lltMarker)
 		{
+
 			if (!dataRead)
 			{
 				pointCount = path->GetPointCount();
@@ -1785,15 +1795,24 @@ void CShapefileDrawer::DrawPolylinePath(Gdiplus::GraphicsPath* path, CDrawingOpt
 				// extracting properties
 				tkDefaultPointSymbol symbol;
 				tkLineLabelOrientation orientation;
-				float markerSize, interval, markerOffset;
+				float markerSize, intervalBase, markerOffsetBase;
+                float interval, markerOffset;
 				OLE_COLOR lineColor;
+                VARIANT_BOOL flipFirst;
+                VARIANT_BOOL intervalIsRelative;
+                VARIANT_BOOL offsetIsRelative;
+                VARIANT_BOOL overflow;
 				
 				line->get_Marker(&symbol);
 				line->get_MarkerSize(&markerSize);
-				line->get_MarkerInterval(&interval);
-				line->get_MarkerOffset(&markerOffset);
+				line->get_MarkerInterval(&intervalBase);
+                line->get_MarkerIntervalIsRelative(&intervalIsRelative);
+				line->get_MarkerOffset(&markerOffsetBase);
+                line->get_MarkerOffsetIsRelative(&offsetIsRelative);
 				line->get_MarkerOutlineColor(&lineColor);
 				line->get_MarkerOrientation(&orientation);
+                line->get_MarkerFlipFirst(&flipFirst);
+                line->get_MarkerAllowOverflow(&overflow);
 				
 				//	preparing marker
 				int numPoints = 0;
@@ -1805,77 +1824,125 @@ void CShapefileDrawer::DrawPolylinePath(Gdiplus::GraphicsPath* path, CDrawingOpt
 					Gdiplus::Pen* pen = new Gdiplus::Pen(Utility::OleColor2GdiPlus(lineColor, transparency));
 					pen->SetAlignment(Gdiplus::PenAlignmentInset);
 				
-					int n = 0;
-					double offset = 0;	// set by the marker offset for the start point, and by the unended part of interval for others
+                    std::vector<double> lengths(pointCount - 1);
+                    std::vector<double> totalLengths(pointCount - 1);
+                    double totalLength = 0.0;
+                    double positionScale = 1.0; // default is = pixel scale
 
-					while(n < pointCount)
+                    // Calculate lengths and total lengths
+                    int currentStartN = 0;
+                    for (int n = 0; n < pointCount; n++)
+                    {
+                        if (data->Types[n] == PathPointTypeStart) {
+                            totalLength = 0;
+                            currentStartN = n;
+                            continue;
+                        }
+
+                        double dx = data->Points[n].X - data->Points[n - 1].X;
+                        double dy = data->Points[n].Y - data->Points[n - 1].Y;
+
+                        double length = sqrt(pow(dx, 2.0) + pow(dy, 2.0));
+
+                        lengths[n - 1] = length;
+                        totalLength += length;
+
+                        // last iteration:
+                        if (n+1 == pointCount || data->Types[n+1] == PathPointTypeStart)
+                            for (int m = currentStartN; m < n; m++)
+                                totalLengths[m] = totalLength;
+                    }
+
+                    // Equals the marker offset for the start point,
+                    // and the undershot part of interval for all others
+                    double offset = 0;
+                    bool firstMarkerDrawn = false;
+                    for (int n = 0; n < pointCount; n++)
 					{
+                        // Start of a new line:
 						if (data->Types[n] == PathPointTypeStart)
 						{
-							offset = markerOffset;
+							double length = 0;
+							double correctedLength = length;
+
+                            totalLength = totalLengths[n] - (overflow ? 0 : markerSize);
+                            // Apply scale factor for offset & interval values if requested:
+                            markerOffset = markerOffsetBase * ((offsetIsRelative) ? (float)totalLength : 1.0f);
+                            interval = intervalBase * ((intervalIsRelative) ? (float)totalLength : 1.0f);
+                            firstMarkerDrawn = false;
+                            // Set starting offset:
+                            offset = markerOffset + (overflow ? 0 : markerSize * 0.5);
+                            correctedLength -= (overflow ? 0 : markerSize * 0.5);
+                            continue;
 						}
-						else
+
+						double length = lengths[n - 1];
+						double correctedLength = length;
+
+                        // Last segment:
+                        if (n + 1 == pointCount || data->Types[n + 1] == PathPointTypeStart) 
+                        {
+                            correctedLength -= (overflow ? 0 : markerSize * 0.5);
+                        }
+
+						CPoint pnt;
+						pnt.x = (LONG)data->Points[n - 1].X;
+						pnt.y = (LONG)data->Points[n - 1].Y;
+
+						double dx = data->Points[n].X - data->Points[n - 1].X;
+						double dy = data->Points[n].Y - data->Points[n - 1].Y;
+
+                        // If this segment is shorter than the offset,
+                        // just subtract from offset & go the next segment
+                        const int count = (interval == 0) ? 1 : (int)((correctedLength - offset) / interval + 1.0 + FLT_EPSILON);
+						if (count <= 0 || offset > correctedLength + FLT_EPSILON)
 						{
-							CPoint pnt;
-							pnt.x = (LONG)data->Points[n - 1].X;
-							pnt.y = (LONG)data->Points[n - 1].Y;
-
-							double dx = data->Points[n].X - data->Points[n - 1].X;
-							double dy = data->Points[n].Y - data->Points[n - 1].Y;
-
-							double length = sqrt(pow(dx,2.0) + pow(dy,2.0));
-
-							if (length < offset)
-							{
-								offset -= length;
-							}
-							else
-							{
-								int count = (int)((length - offset)/interval) + 1;
-
-								ratio = offset/length;
-								Gdiplus::PointF pntStart(Gdiplus::REAL(pnt.x + dx * ratio), Gdiplus::REAL(pnt.y + dy * ratio));
-								
-								float angle = 0.0f;
-								if (orientation == lorParallel )
-								{
-									angle = (float)(GeometryHelper::GetPointAngle(dx, dy) / pi_ * 180.0 - 90.0);
-								}
-								else if (orientation == lorPerpindicular)
-								{
-									angle = (float)(GeometryHelper::GetPointAngle(dx, dy) / pi_ * 180.0); //+ 90.0);
-								}
-								
-								//int size = (int)markerSize/2;
-								SIZE size;
-								size.cx = (LONG)markerSize;
-								size.cy = (LONG)markerSize;
-
-								for (int j = 0; j < count; j++)
-								{
-									double ratio = interval/length * (double)j;
-									Gdiplus::REAL xPos =(Gdiplus::REAL)(pntStart.X + dx * ratio);
-									Gdiplus::REAL yPos =(Gdiplus::REAL)(pntStart.Y + dy * ratio);
-										
-									_graphics->TranslateTransform(xPos , yPos);
-									_graphics->RotateTransform(-angle);
-
-									_graphics->FillPolygon(brush, (Gdiplus::PointF*)points, numPoints);
-									_graphics->DrawPolygon(pen, (Gdiplus::PointF*)points, numPoints);
-
-									if (drawSelection)
-									{
-										_graphics->FillPolygon(brushSelection, (Gdiplus::PointF*)points, numPoints);
-									}
-								
-									_graphics->ResetTransform();
-								}
-
-								offset = interval - ((length - offset) - ((count - 1) * interval));		// the part of interval left to draw
-							}
+							offset -= correctedLength;
+                            continue;
 						}
 
-						n++;
+						ratio = offset/length;
+						Gdiplus::PointF pntStart(Gdiplus::REAL(pnt.x + dx * ratio), Gdiplus::REAL(pnt.y + dy * ratio));
+								
+                        double angle = 0.0f;
+						if (orientation == lorParallel )
+						{
+							angle = GeometryHelper::GetPointAngle(dx, dy) / pi_ * 180.0 - 90.0;
+						}
+						else if (orientation == lorPerpindicular)
+						{
+							angle = GeometryHelper::GetPointAngle(dx, dy) / pi_ * 180.0;
+						}
+								
+						SIZE size;
+						size.cx = (LONG)markerSize;
+						size.cy = (LONG)markerSize;
+
+						for (int j = 0; j < count; j++)
+						{
+							double ratio = interval/length * (double)j;
+							Gdiplus::REAL xPos =(Gdiplus::REAL)(pntStart.X + dx * ratio);
+							Gdiplus::REAL yPos =(Gdiplus::REAL)(pntStart.Y + dy * ratio);
+										
+							_graphics->TranslateTransform(xPos , yPos);
+							_graphics->RotateTransform((float)(-angle + ((flipFirst && !firstMarkerDrawn) ? 180 : 0)));
+
+							_graphics->FillPolygon(brush, (Gdiplus::PointF*)points, numPoints);
+							_graphics->DrawPolygon(pen, (Gdiplus::PointF*)points, numPoints);
+
+							if (drawSelection)
+								_graphics->FillPolygon(brushSelection, (Gdiplus::PointF*)points, numPoints);
+								
+							_graphics->ResetTransform();
+                            firstMarkerDrawn = true;
+						}
+
+                        // if interval is zero, no point in going to the next segment of this polyline
+                        while (interval == 0 && !(n+1==pointCount || data->Types[n + 1] == PathPointTypeStart))
+                            n++;
+
+                        // the part of interval left to draw:
+                        offset += count * interval - length;
 					}
 					delete[] points;
 					delete brush;

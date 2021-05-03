@@ -23,6 +23,7 @@ void OgrDynamicLoader::PutData(vector<ShapeRecordData*> shapeData)
 { // Locking data in this function
 	CSingleLock lock(&DataLock, TRUE);
 	Data.insert(Data.end(), shapeData.begin(), shapeData.end());
+	hasData = true;
 }
 
 // **********************************************
@@ -36,7 +37,16 @@ vector<ShapeRecordData*> OgrDynamicLoader::FetchData()
 		data.insert(data.end(), Data.begin(), Data.end());
 		Data.clear();
 	}
+	hasData = false;
 	return data;
+}
+
+// **********************************************
+//		FetchData()
+// **********************************************
+bool OgrDynamicLoader::HasData()
+{
+	return hasData;
 }
 
 // **********************************************
@@ -121,16 +131,5 @@ void OgrDynamicLoader::AwaitTasks()
             delete task;
         }
     }
-}
-
-// **********************************************
-//		GetLabelPosition()
-// **********************************************
-tkLabelPositioning OgrDynamicLoader::GetLabelPosition(ShpfileType type)
-{
-	if (LabelPosition == lpNone)
-		return LabelsHelper::LabelPositionForShapeType(type);
-	else
-		return LabelPosition;
 }
 

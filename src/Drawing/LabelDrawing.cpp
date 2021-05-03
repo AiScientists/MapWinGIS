@@ -284,25 +284,22 @@ void CLabelDrawer::CalcScreenRectangle(CLabelOptions* options, CLabelInfo* lbl, 
 	tkLabelAlignment align = (autoOffset && options->alignment == laCenter) ? laCenterRight : options->alignment;
 	LabelDrawingHelper::AlignRectangle(rect, options->alignment);
 
+    double lblX = lbl->x + lbl->offsetX, lblY = lbl->y + lbl->offsetY;
+
 	if (_spatiallyReferenced)
 	{
-		this->ProjectionToPixel(lbl->x, lbl->y, piX, piY);
+		this->ProjectionToPixel(lblX, lblY, piX, piY);
 	}
 	else
 	{
 		// no calculations for screen referenced labels
-		piX = lbl->x;
-		piY = lbl->y;
+		piX = lblX;
+		piY = lblY;
 	}
 
-	// we make very narrow rect wider to have circular form in case of rounded frames
-	if (rect.Height() > rect.Width())
-	{
-		long add = (long)ceil(double((rect.Height() - rect.Width()) / 2));
-		rect.left -= add;
-		rect.right += add;
-		offset += 2 * add;
-	}
+	// MWGIS-229; erroneous code removed from here, handling rounded rectangles.
+	// Rounded and Pointed rectangles are now properly handled in GDI DrawFrame
+	// and GDI+ DrawLabelFrame methods (see https://mapwindow.atlassian.net/browse/MWGIS-229)
 
 	// adding padding				
 	if (options->frameVisible)
@@ -320,10 +317,10 @@ void CLabelDrawer::CalcScreenRectangle(CLabelOptions* options, CLabelInfo* lbl, 
 		LabelDrawingHelper::UpdateAutoOffset(rect, align, offset);
 	}
 
-	rect.left += (LONG)options->offsetX;
-	rect.right += (LONG)options->offsetX;
-	rect.top += (LONG)options->offsetY;
-	rect.bottom += (LONG)options->offsetY;
+    rect.left += (LONG) options->offsetX;
+    rect.right += (LONG) options->offsetX;
+    rect.top += (LONG) options->offsetY;
+    rect.bottom += (LONG) options->offsetY;
 }
 
 // *********************************************************************

@@ -147,6 +147,8 @@ BEGIN_EVENT_MAP(CMapView, COleControl)
 	EVENT_CUSTOM_ID("AfterLayers", eventidAfterLayers, FireAfterLayers, VTS_I4 VTS_I4 VTS_I4 VTS_I4 VTS_I4 VTS_I4)
     EVENT_CUSTOM_ID("LayerReprojectedIncomplete", eventidLayerReprojectedIncomplete, FireLayerReprojectedIncomplete, VTS_I4 VTS_I4 VTS_I4)
 	EVENT_CUSTOM_ID("BeforeVertexDigitized", eventidBeforeVertexDigitized, FireBeforeVertexDigitized, VTS_PR8 VTS_PR8)
+    EVENT_CUSTOM_ID("SnapPointRequested", eventidSnapPointRequested, FireSnapPointRequested, VTS_R8 VTS_R8 VTS_PR8 VTS_PR8 VTS_PI4 VTS_PI4)
+    EVENT_CUSTOM_ID("SnapPointFound", eventidSnapPointFound, FireSnapPointFound, VTS_R8 VTS_R8 VTS_PR8 VTS_PR8)
 	EVENT_STOCK_DBLCLICK()
 	//}}AFX_EVENT_MAP
 	
@@ -159,15 +161,15 @@ END_EVENT_MAP()
 //		CMapView() constructor
 // ********************************************************************
 CMapView::CMapView() 
-	: _vals("AZ0CY1EX2GV3IT4KR5MP6ON7QL8SJ9UH0WF1DB2"), 
+: _vals("AZ0CY1EX2GV3IT4KR5MP6ON7QL8SJ9UH0WF1DB2"),
 	_valsLen(39), _isSnapshot(false),
-	_brushBlue(Gdiplus::Color::Blue),
-	_brushBlack(Gdiplus::Color::Black), 
-	_brushWhite(Gdiplus::Color::White), 
-	_brushLightGray(Gdiplus::Color::LightGray),
-	_penGray(Gdiplus::Color::Gray),
-	_brushGray(Gdiplus::Color::Gray), 
-	_penDarkGray(Gdiplus::Color::DarkSlateGray),
+	_brushBlue(NULL),
+	_brushBlack(NULL),
+	_brushWhite(NULL),
+	_brushLightGray(NULL),
+	_brushGray(NULL),
+	_penGray(NULL),
+	_penDarkGray(NULL),
 	_propertyExchange(NULL),
 	_bufferBitmap(NULL),
 	_tilesBitmap(NULL),
@@ -200,7 +202,8 @@ CMapView::~CMapView()
 	this->Shutdown();
 
     // GDI Plus Shutdown
-    TileCacheManager::CloseAll();
+    // TileCacheManager::CloseAll is now by GdiplusShutdown,
+	// managed within the reference count
     GdiplusShutdown();
 }
 
@@ -229,6 +232,14 @@ void CMapView::Startup()
 {
 	InitializeIIDs(&IID_DMap, &IID_DMapEvents);
 	
+	_brushBlue = new Gdiplus::SolidBrush(Gdiplus::Color::Blue);
+	_brushBlack = new Gdiplus::SolidBrush(Gdiplus::Color::Black);
+	_brushWhite = new Gdiplus::SolidBrush(Gdiplus::Color::White);
+	_brushLightGray = new Gdiplus::SolidBrush(Gdiplus::Color::LightGray);
+	_brushGray = new Gdiplus::SolidBrush(Gdiplus::Color::Gray);
+	_penGray = new Gdiplus::Pen(Gdiplus::Color::Gray);
+	_penDarkGray = new Gdiplus::Pen(Gdiplus::Color::DarkSlateGray);
+
 	Utility::InitGdiPlusFont(&_fontCourier, L"Courier New", 9.0f);
 	Utility::InitGdiPlusFont(&_fontArial, L"Arial", 9.0f);
 	_fontCourierSmall = new Gdiplus::Font(L"Courier New", 8.0f);
@@ -361,13 +372,13 @@ void CMapView::SetDefaults()
 	m_backColor = RGB( 255, 255, 255 );
 	m_extentPad = 0.02;
 	_rotateAngle = 0.0f;
-	_canUseImageGrouping = VARIANT_FALSE;
-	_grabProjectionFromData = VARIANT_TRUE;
+	_canUseImageGrouping = FALSE;
+	_grabProjectionFromData = TRUE;
 	_hasHotTracking = false;
 	_showCoordinates = cdmAuto;
 	_zoomBehavior = zbUseTileLevels;
-	_scalebarVisible = VARIANT_TRUE;
-	_zoombarVisible = VARIANT_TRUE;
+	_scalebarVisible = TRUE;
+	_zoombarVisible = TRUE;
 	_multilineLabeling = true;
 	_mapResizeBehavior = rbClassic;
 	_doTrapRMouseDown = TRUE;
@@ -378,8 +389,8 @@ void CMapView::SetDefaults()
 	_disableWaitCursor = false;
 	_lineSeparationFactor = 3;		
 	_useLabelCollision = false;
-	_showRedrawTime = VARIANT_FALSE;
-	_showVersionNumber = VARIANT_FALSE;	
+	_showRedrawTime = FALSE;
+	_showVersionNumber = FALSE;	
 	_scalebarUnits = tkScalebarUnits::GoogleStyle;
 	_zoomBarVerbosity = tkZoomBarVerbosity::zbvFull;
 	_panningInertia = csFalse;
@@ -392,8 +403,9 @@ void CMapView::SetDefaults()
 	_showCoordinatesFormat = afDegrees;
 	_panningExtentsChanged = false;
 	_prevExtentsIndex = 0;
-	_useAlternatePanCursor = VARIANT_FALSE;
-	_recenterMapOnZoom = VARIANT_FALSE;
+	_useAlternatePanCursor = FALSE;
+	_recenterMapOnZoom = FALSE;
+    _showCoordinatesBackground = FALSE;
 
 	// TODO: perhaps it's better to grab those from property exchanged (i.e. reverting only runtime changes)
 	// perhaps this call can do this:
@@ -677,6 +689,8 @@ void CMapView::DoPropExchange(CPropExchange* pPX)
 		PX_Bool(pPX, "UseAlternatePanCursor", _useAlternatePanCursor, FALSE);
 
 		PX_Bool(pPX, "RecenterMapOnZoom", _recenterMapOnZoom, FALSE);
+
+        PX_Bool(pPX, "ShowCoordinatesBackground", _showCoordinatesBackground, FALSE);
 	}
 	catch(...)
 	{
@@ -789,6 +803,7 @@ void CMapView::GdiplusShutdown()
 	ms_gdiplusCount--;
 	if (ms_gdiplusCount == 0)
 	{
+		TileCacheManager::CloseAll();
 		ms_gdiplusStartupOutput.NotificationUnhook(ms_gdiplusBGThreadToken);
 		Gdiplus::GdiplusShutdown(ms_gdiplusToken);
 		ms_gdiplusToken = NULL;

@@ -37,8 +37,6 @@ public:
 	{
 		_stop = false;
 		_maxCacheCount = m_globalSettings.ogrLayerMaxFeatureCount;
-		LabelOrientation = lorParallel;
-		LabelPosition = lpNone;
 		_lockCounter = 0;
 		IsMShapefile = false;
 	}
@@ -55,6 +53,7 @@ private:
 	unsigned long _lockCounter;
 	std::queue<OgrLoadingTask*> Queue;
 	vector<ShapeRecordData*> Data;
+	bool hasData;
 
 public:
 	::CCriticalSection ShapefileLock;
@@ -62,12 +61,8 @@ public:
 	::CCriticalSection ProviderLock;	
 
 	bool IsMShapefile;
-	CStringW LabelExpression;
 	Extent LastExtents;
 	Extent LastSuccessExtents;
-	tkLabelPositioning LabelPosition;
-	tkLineLabelOrientation LabelOrientation;
-	tkLabelPositioning GetLabelPosition(ShpfileType type);
 	
 	void EnqueueTask(OgrLoadingTask* task);
 	bool SignalWaitingTask();
@@ -85,5 +80,6 @@ public:
 	
 	vector<ShapeRecordData*> FetchData();
 	void PutData(vector<ShapeRecordData*> shapeData);
+	bool HasData();
 };
 

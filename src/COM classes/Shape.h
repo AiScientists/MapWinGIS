@@ -110,6 +110,8 @@ public:
 	STDMETHOD(Overlaps)(IShape* Shape, VARIANT_BOOL* retval);
 	STDMETHOD(Touches)(IShape* Shape, VARIANT_BOOL* retval);
 	STDMETHOD(Within)(IShape* Shape, VARIANT_BOOL* retval);
+    STDMETHOD(Covers)(IShape* Shape, VARIANT_BOOL* retval);
+    STDMETHOD(CoveredBy)(IShape* Shape, VARIANT_BOOL* retval);
 	STDMETHOD(Boundary)(IShape** retval);
 	STDMETHOD(ConvexHull)(IShape** retval);
 	STDMETHOD(get_IsValid)(VARIANT_BOOL* retval);
@@ -157,10 +159,17 @@ private:
 	// either CShapeWrapper or CShapeWrapperCOM
 	IShapeWrapper* _shp;
 
+	tkLabelPositioning labelPositioning = tkLabelPositioning::lpNone;
+	tkLineLabelOrientation labelOrientation = tkLineLabelOrientation::lorParallel;
+	double labelX;
+	double labelY;
+	double labelRotation;
+
 	// forces to use fast shape wrapper class to hold points information
 	bool _useFastMode;							
 	
 private:
+	void ClearLabelPositionCache();
 	void ErrorMessage(long ErrorCode);
 	bool PointInThisPolyFast(IPoint * pt);
 	bool PointInThisPolyRegular(IPoint * pt);

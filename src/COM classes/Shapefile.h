@@ -157,7 +157,7 @@ public:
 	STDMETHOD(Dissolve)(long FieldIndex, VARIANT_BOOL SelectedOnly, IShapefile** sf);
 	STDMETHOD(get_Labels)(ILabels** pVal);
 	STDMETHOD(put_Labels)(ILabels* newVal);
-	STDMETHOD(GenerateLabels)(long FieldIndex, tkLabelPositioning Method, VARIANT_BOOL LargestPartOnly, long* Count);
+	STDMETHOD(GenerateLabels)(long FieldIndex, tkLabelPositioning Method, VARIANT_BOOL LargestPartOnly, long offsetXFieldIndex, long offsetYFieldIndex, long* Count);
 	STDMETHOD(Clone)(IShapefile** retVal);
 	STDMETHOD(get_DefaultDrawingOptions)(IShapeDrawingOptions** pVal);
 	STDMETHOD(put_DefaultDrawingOptions)(IShapeDrawingOptions* newVal);
@@ -314,6 +314,7 @@ private:
     // OGR layers can lookup by fixed FID rather than ever-changing ShapeIndex
     // (Shape indices change when removing rows, and may change on OGR reload)
     std::map<long, long> _ogrFid2ShapeIndex;
+	std::set<long> _deletedFids;
     bool _hasOgrFidMapping = false;
 
 	// table is initialized in CreateNew or Open methods
@@ -437,6 +438,9 @@ private:
 	bool AppendToShpFile(FILE* shp, IShapeWrapper* wrapper);
 	void WriteBounds(FILE* shp);
 	bool ReopenFiles(bool writeMode);
+    // read only those geometries requested by the specified array
+    void ReadGeosGeometries(std::set<int> list);
+    bool IsShapeCompatible(IShape* shape);
 
 public:
 	// accessing shapes
@@ -491,6 +495,7 @@ public:
 	// drawing 
 	void MarkUndrawn();
 	void GetLabelString(long fieldIndex, long shapeIndex, BSTR* text, CString floatNumberFormat);
+    void GetLabelOffset(long offsetFieldIndex, long shapeIndex, double* offset);
 	bool GetSorting(vector<long>** indices);
 
     // OGR data source can map OGR FID to ShapeIndex
@@ -499,6 +504,23 @@ public:
     {
         _ogrFid2ShapeIndex.insert(std::make_pair(ogrFid, shapeIndex));
     }
+	bool MarkShapeDeleted(long shapeIndex)
+	{
+		if (!_hasOgrFidMapping)
+			return false;
+		
+		for (auto const& it : _ogrFid2ShapeIndex)
+			if (it.second == shapeIndex)
+				_deletedFids.insert(it.first);
+	}
+	std::set<long> GetDeletedShapeFIDs()
+	{
+		return std::set<long>(_deletedFids);
+	}
+	void ClearDeleteShapeFIDs()
+	{
+		_deletedFids.clear();
+	}
 
     // give OGR layers the ability to retain visibility flags on reload
     bool GetVisibilityFlags(map<long, BYTE> &flags);

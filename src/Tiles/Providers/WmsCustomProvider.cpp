@@ -31,12 +31,11 @@ CString WmsCustomProvider::MakeTileImageUrl(CPoint &pos, int zoom)
 	s += "?request=GetMap&service=WMS";
 	s += "&layers=" + _layers;
 
-	s += "&";
 	CString temp;
-	temp.Format("&srs=EPSG:%d", get_CustomProjection()->get_Epsg());
+	temp.Format("&crs=EPSG:%d", get_CustomProjection()->get_Epsg());
 	s += temp;
 
-	s += "&bbox=" + GetBoundingBox(pos, zoom);
+	s += "&bbox=" + GetBoundingBox(pos, zoom, _version, _bbo);
 	s += "&format=" + _format;
 	s += "&width=256";
 	s += "&height=256";
@@ -63,7 +62,7 @@ CString WmsCustomProvider::get_VersionString()
 	case wv111:
 		return "&version=1.1.1";
 	case wv13:
-		return "&version=1.3";
+		return "&version=1.3.0";
 	default:
 		return "";
 	}
