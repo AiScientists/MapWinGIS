@@ -1428,8 +1428,16 @@ void tkGridRaster::ReadBGDHeader(CString filename, FILE * in, DATA_TYPE &bgdData
 					if (startsWith(projection, "+proj")) {
 						char * wkt = NULL;
 
-						ProjectionTools * p = new ProjectionTools();
-						p->ToESRIWKTFromProj4(&wkt, projection);
+		// TODO: rewrite using GeoProjection class
+		// a .prj file will override what's in the header
+		try
+		{
+			char * newProj = NULL;
+			// TODO: Should we use GeoPorjection instead?
+			ProjectionTools * p = new ProjectionTools();
+			CString prjFilename = filename.Left(filename.GetLength() - 3) + "prj";
+			p->GetProj4FromPRJFile(prjFilename.GetBuffer(), &newProj);
+			delete p;
 
 						if (wkt != NULL && strcmp(wkt, "") != 0) {
 							if (_rasterDataset) _rasterDataset->SetProjection(wkt);

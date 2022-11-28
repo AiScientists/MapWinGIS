@@ -122,11 +122,12 @@ STDMETHODIMP CImageClass::Resource(BSTR newImgPath, VARIANT_BOOL *retval) {
 // ************************************************************
 //	  Open()
 // ************************************************************
-STDMETHODIMP CImageClass::Open(BSTR ImageFileName, ImageType FileType, VARIANT_BOOL InRam, ICallback *cBack, VARIANT_BOOL *retval) {
+STDMETHODIMP CImageClass::Open(BSTR imageFileName, ImageType fileType, VARIANT_BOOL inRam, ICallback *cBack, VARIANT_BOOL *retval)
+{
 	AFX_MANAGE_STATE(AfxGetStaticModuleState())
-
-		USES_CONVERSION;
-	OpenImage(OLE2W(ImageFileName), FileType, InRam, cBack, GA_ReadOnly, true, retval);
+		
+	USES_CONVERSION;
+	OpenImage(OLE2W(imageFileName), fileType, inRam, cBack, GA_ReadOnly, true, retval);
 
 	ReadProjection();
 
@@ -136,11 +137,12 @@ STDMETHODIMP CImageClass::Open(BSTR ImageFileName, ImageType FileType, VARIANT_B
 // ***************************************************************
 //		ReadProjection()
 // ***************************************************************
-void CImageClass::ReadProjection() {
-	CStringW prjFilename = Utility::GetProjectionFilename(_fileName);
+void CImageClass::ReadProjection()
+{
+	const CStringW prjFilename = Utility::GetProjectionFilename(_fileName);
 
 	VARIANT_BOOL vb;
-	CComBSTR bstr(prjFilename);
+	const CComBSTR bstr(prjFilename);
 	_projection->ReadFromFile(bstr, &vb);
 
 	CString wkt;
@@ -170,9 +172,10 @@ void CImageClass::LoadImageAttributesFromGridColorScheme(IGridColorScheme* schem
 // ************************************************************
 // checkForProxy = true; image is being opened by client directly and we don't know whether it proxy or not;
 // checkForProxy = false; image is being opened by grid code and we already know that it is a proxy, and all the logic will be executed in grid class
-void CImageClass::OpenImage(CStringW ImageFileName, ImageType FileType, VARIANT_BOOL InRam, ICallback *cBack, GDALAccess accessMode, bool checkForProxy, VARIANT_BOOL *retval) {
-	_fileName = ImageFileName;
-	_inRam = InRam == VARIANT_TRUE;
+void CImageClass::OpenImage(CStringW imageFileName, ImageType fileType, VARIANT_BOOL inRam, ICallback *cBack, GDALAccess accessMode, bool checkForProxy, VARIANT_BOOL *retval)
+{
+	_fileName = imageFileName;	
+	_inRam = inRam == VARIANT_TRUE;
 
 	// child classes will be deleted here
 	Close(retval);
@@ -181,8 +184,10 @@ void CImageClass::OpenImage(CStringW ImageFileName, ImageType FileType, VARIANT_
 		return;
 
 	// figuring out extension from the path
-	if (FileType == USE_FILE_EXTENSION) {
-		if (!getFileType(_fileName, FileType)) {
+	if(fileType == USE_FILE_EXTENSION)
+	{
+		if(!getFileType(_fileName, fileType))
+		{
 			// don't give up, we'll try to open it through GDAL
 			*retval = VARIANT_FALSE;
 		}
@@ -190,14 +195,16 @@ void CImageClass::OpenImage(CStringW ImageFileName, ImageType FileType, VARIANT_
 
 	if (!_globalCallback) this->put_GlobalCallback(cBack);
 
-	if (FileType == BITMAP_FILE) {
+	if (fileType == BITMAP_FILE)
+	{
 		_bitmapImage = new tkBitmap();
 		_bitmapImage->globalCallback = _globalCallback;
 
 		_imgType = BITMAP_FILE;
-		*retval = ReadBMP(_fileName, _inRam) ? VARIANT_TRUE : VARIANT_FALSE;
-		if (*retval) {
-			_sourceType = InRam ? istInMemory : istDiskBased;
+		*retval = ReadBMP( _fileName, _inRam)?VARIANT_TRUE:VARIANT_FALSE;
+		if (*retval)
+		{
+			_sourceType = inRam?istInMemory:istDiskBased;
 		}
 	} else {
 		// GDAL will determine the format automatically, so no specific code for extensions is needed.
@@ -207,11 +214,12 @@ void CImageClass::OpenImage(CStringW ImageFileName, ImageType FileType, VARIANT_
 		_raster = new GdalRaster();
 		_raster->SetCallback(_globalCallback);
 
-		_imgType = FileType;
-		*retval = OpenGdalRaster(_fileName, accessMode) ? VARIANT_TRUE : VARIANT_FALSE;
-
-		if (*retval) {
-			SetImageTypeCore(FileType);
+		_imgType = fileType;
+		*retval = OpenGdalRaster(_fileName, accessMode)?VARIANT_TRUE:VARIANT_FALSE;
+		
+		if (*retval)
+		{
+			SetImageTypeCore(fileType);
 			_sourceType = istGDALBased;
 		}
 	}

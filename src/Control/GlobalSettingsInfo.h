@@ -94,84 +94,85 @@ struct GlobalSettingsInfo {
 			callback->Release();
 	}
 
-	GlobalSettingsInfo::GlobalSettingsInfo() {
-		allowLayersWithIncompleteReprojection = false;
-		ogrInterpretYNStringAsBoolean = true;
-		ogrListAllGeometryTypes = true;
-		ogrShareConnection = false;
-		callbackVerbosity = cvAll;
-		wmsDiskCaching = true;
-		cacheShapeRenderingData = false;
-		cacheDbfRecords = true;
-		overrideLocalCallback = true;
-		proxyAuthentication = asBasic;
-		httpUserAgent = "MapWinGIS/5.0"; // TODO Use VERSION Macros
-		hereAppId = "";
-		hereAppCode = "";
-		bingApiKey = "";
-		forceReadOnlyModeForGdalRasters = false;
-		forceHideLabels = false;
-		ogrLayerForceUpdateMode = false;
-		autoChooseRenderingHintForLabels = true;
-		suppressGdalErrors = false;
-		pixelOffsetMode = pomDefault;
-		floatNumberFormat = "%g";
-		maxReprojectionShapeCount = 50000;
-		useShortUrlForTiles = false;
-		callback = nullptr;
-		mouseTolerance = 20;
-		allowLayersWithoutProjection = true;
-		allowProjectionMismatch = true;
-		reprojectLayersOnAdding = false;
-		emptyBstr = SysAllocString(L"");
-		gdalBstr = SysAllocString(L"GDAL");
-		identifierColor = RGB(30, 144, 255);
-		hotTrackingMaxShapeCount = 200;
-		attachMapCallbackToLayers = true;
-		ctorCount = 0;
-		dtorCount = 0;
-		saveOgrLabels = false;
-		useSchemesForStyles = false;
-		autoChooseOgrLoadingMode = true;
-		ogrLayerMaxFeatureCount = 50000;
-		ogrEncoding = oseUtf8;
-		imageUpsamplingMode = imNone;
-		imageDownsamplingMode = imBilinear;
-		gridUpsamplingMode = imNone;
-		gridDownsamplingMode = imBilinear;
-		rasterOverviewResampling = tkGDALResamplingMethod::grmNearest;
-		minOverviewWidth = 512;
-		rasterOverviewCreation = tkRasterOverviewCreation::rocAuto;
-		tiffCompression = tkTiffCompression::tkmLZW;
-		labelsCollisionMode = tkCollisionMode::LocalList;
-		minPolygonArea = 1.0;
-		minAreaToPerimeterRatio = 0.0001;
-		clipperGcsMultiplicationFactor = 100000.0;
-		shapefileFastMode = false;
-		invalidShapesBufferDistance = 0.001;
-		shapefileFastUnion = true;
-		labelsCompositingQuality = HighQuality;
-		labelsSmoothingMode = HighQualityMode;
-		zoomToFirstLayer = true;
-		gridProxyFormat = gpfBmpProxy;
-		MaxDirectGridSizeMb = 20.0;
-		gridProxyMode = gpmAuto;
-		maxUniqueValuesCount = 100;
-		randomColorSchemeForGrids = true;
-		defaultColorSchemeForGrids = SummerMountains;
-		inputValidation = tkShapeValidationMode::NoValidation;
-		outputValidation = tkShapeValidationMode::NoValidation;
-		geometryEngine = tkGeometryEngine::engineGeos;
-		saveGridColorSchemeToFile = true;
-		xmlFileVersion = 2;
-		xmlFilenameEncoding = "utf8";
-		tilesThreadPoolSize = 5;
-		loadSymbologyOnAddLayer = true;
-		tilesMaxZoomOnProjectionMismatch = 6;
-		commonCollisionListForCharts = true;
-		commonCollisionListForLabels = true;
-		gridFavorGreyScale = true;
-		gridUseHistogram = true;
+    GlobalSettingsInfo::GlobalSettingsInfo()
+    {
+        allowLayersWithIncompleteReprojection = false;
+        ogrInterpretYNStringAsBoolean = true;
+        ogrListAllGeometryTypes = true;
+        ogrShareConnection = false;
+        callbackVerbosity = cvAll;
+        wmsDiskCaching = true;
+        cacheShapeRenderingData = false;
+        cacheDbfRecords = true;
+        overrideLocalCallback = true;
+        proxyAuthentication = asBasic;
+		httpUserAgent = "MapWinGIS/5.4"; // TODO Use VERSION Macros
+        hereAppId = "";
+        hereAppCode = "";
+        bingApiKey = "";
+        forceReadOnlyModeForGdalRasters = false;
+        forceHideLabels = false;
+        ogrLayerForceUpdateMode = false;
+        autoChooseRenderingHintForLabels = true;
+        suppressGdalErrors = false;
+        pixelOffsetMode = pomDefault;
+        floatNumberFormat = "%g";
+        maxReprojectionShapeCount = 50000;
+        useShortUrlForTiles = false;
+        callback = nullptr;
+        mouseTolerance = 20;
+        allowLayersWithoutProjection = true;
+        allowProjectionMismatch = true;
+        reprojectLayersOnAdding = false;
+        emptyBstr = SysAllocString(L"");
+        gdalBstr = SysAllocString(L"GDAL");
+        identifierColor = RGB(30, 144, 255);
+        hotTrackingMaxShapeCount = 200;
+        attachMapCallbackToLayers = true;
+        ctorCount = 0;
+        dtorCount = 0;
+        saveOgrLabels = false;
+        useSchemesForStyles = false;
+        autoChooseOgrLoadingMode = true;
+        ogrLayerMaxFeatureCount = 50000;
+        ogrEncoding = oseUtf8;
+        imageUpsamplingMode = imNone;
+        imageDownsamplingMode = imBilinear;
+        gridUpsamplingMode = imNone;
+        gridDownsamplingMode = imBilinear;
+        rasterOverviewResampling = tkGDALResamplingMethod::grmNearest;
+        minOverviewWidth = 512;
+        rasterOverviewCreation = tkRasterOverviewCreation::rocAuto;
+        tiffCompression = tkTiffCompression::tkmLZW;
+        labelsCollisionMode = tkCollisionMode::LocalList;
+        minPolygonArea = 1.0;
+        minAreaToPerimeterRatio = 0.0001;
+        clipperGcsMultiplicationFactor = 100000.0;
+        shapefileFastMode = false;
+        invalidShapesBufferDistance = 0.001;
+        shapefileFastUnion = true;
+        labelsCompositingQuality = HighQuality;
+        labelsSmoothingMode = HighQualityMode;
+        zoomToFirstLayer = true;
+        gridProxyFormat = gpfBmpProxy;
+        MaxDirectGridSizeMb = 20.0;
+        gridProxyMode = gpmAuto;
+        maxUniqueValuesCount = 100;
+        randomColorSchemeForGrids = true;
+        defaultColorSchemeForGrids = SummerMountains;
+        inputValidation = tkShapeValidationMode::NoValidation;
+        outputValidation = tkShapeValidationMode::NoValidation;
+        geometryEngine = tkGeometryEngine::engineGeos;
+        saveGridColorSchemeToFile = true;
+        xmlFileVersion = 2;
+        xmlFilenameEncoding = "utf8";
+        tilesThreadPoolSize = 5;
+        loadSymbologyOnAddLayer = true;
+        tilesMaxZoomOnProjectionMismatch = 6;
+        commonCollisionListForCharts = true;
+        commonCollisionListForLabels = true;
+        gridFavorGreyScale = true;
+        gridUseHistogram = true;
 
 		shortUnitStrings[lsHectars] = L"公顷";
 		shortUnitStrings[lsMeters] = L"米";
@@ -198,10 +199,11 @@ struct GlobalSettingsInfo {
 		shortUnitStrings[lsSquareMiles] = L"平方英里";
 	}
 
-	BSTR CreateEmptyBSTR() {
-		USES_CONVERSION;
-		return A2BSTR("");
-	}
+    static BSTR CreateEmptyBSTR()
+    {
+        //USES_CONVERSION;
+        return A2BSTR("");
+    }
 
 	// *******************************************************
 	//		GetTiffCompression()
@@ -210,19 +212,22 @@ struct GlobalSettingsInfo {
 		return GdalHelper::TiffCompressionToString(tiffCompression);
 	}
 
-	PredefinedColorScheme GetGridColorScheme() {
-		PredefinedColorScheme coloring = defaultColorSchemeForGrids;
-		if (randomColorSchemeForGrids) {
-			srand((unsigned int)time(nullptr));
-			int r = rand();
-			coloring = (PredefinedColorScheme)(r % 7);
-		}
-		return coloring;
-	}
+    PredefinedColorScheme GetGridColorScheme()
+    {
+        PredefinedColorScheme coloring = defaultColorSchemeForGrids;
+        if (randomColorSchemeForGrids)
+        {
+            srand(static_cast<unsigned>(time(nullptr)));
+            const int r = rand();
+            coloring = static_cast<PredefinedColorScheme>(r % 7);
+        }
+        return coloring;
+    }
 
-	CStringW GetLocalizedString(tkLocalizedStrings s) {
-		return shortUnitStrings.find(s) != shortUnitStrings.end() ? shortUnitStrings[s] : L"";
-	}
+    CStringW GetLocalizedString(const tkLocalizedStrings s)
+    {
+        return shortUnitStrings.find(s) != shortUnitStrings.end() ? shortUnitStrings[s] : L"";
+    }
 
 	double GetMinPolygonArea(IGeoProjection* proj) {
 		VARIANT_BOOL isGeographic;
@@ -241,21 +246,24 @@ struct GlobalSettingsInfo {
 		return minPolygonArea;
 	}
 
-	void SetGdalUtf8(bool turnon) {
-		CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", turnon ? "YES" : "NO");
-	}
+    void SetGdalUtf8(const bool turnOn)
+    {
+        CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", turnOn ? "YES" : "NO");
+    }
 
-	int GetTilesThreadPoolSize() {
-		int size = tilesThreadPoolSize > 20 ? 20 : tilesThreadPoolSize;
-		return size;
-	}
+    int GetTilesThreadPoolSize()
+    {
+	    const int size = tilesThreadPoolSize > 20 ? 20 : tilesThreadPoolSize;
+        return size;
+    }
 
-	double GetInvalidShapeBufferDistance(tkUnitsOfMeasure units) {
-		double val = invalidShapesBufferDistance;
-		if (Utility::ConvertDistance(units, umMeters, val)) {
-			return invalidShapesBufferDistance / val;
-		} else {
-			return invalidShapesBufferDistance;
-		}
-	}
+    double GetInvalidShapeBufferDistance(const tkUnitsOfMeasure units)
+    {
+        double val = invalidShapesBufferDistance;
+        if (Utility::ConvertDistance(units, umMeters, val))
+        {
+            return invalidShapesBufferDistance / val;
+        }
+        return invalidShapesBufferDistance;
+    }
 };

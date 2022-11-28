@@ -1093,8 +1093,9 @@ namespace {
 			float dLog = 0.0f;
 			if (val < 1.0f)
 				val = 1.0f;
-			if (biRange > 1.0f) {
-				result.right = (pow(val - lowVal, 2) / pow(biRange, 2));
+			if( biRange > 1.0f )
+			{
+				result.right = ( powf(val - lowVal, 2) / powf(biRange, 2) );
 				result.left = 1.0f - result.right;
 			} else {
 				result.right = 0.0f;

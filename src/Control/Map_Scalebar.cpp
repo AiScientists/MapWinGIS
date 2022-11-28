@@ -1,14 +1,16 @@
-#include "stdafx.h"
-#include "map.h"
+// ReSharper disable CppTooWideScopeInitStatement
+// ReSharper disable CppTooWideScope
+#include <StdAfx.h>
+#include "Map.h"
 #include "TileProviders.h"
-#include "GdiPlusHelper.h"
 #include "GraphicsStateHelper.h"
 
 // ****************************************************************
 //		DrawStringWithShade()
 // ****************************************************************
-void CMapView::DrawStringWithShade(Gdiplus::Graphics* g, CStringW s, Gdiplus::Font *font, Gdiplus::PointF &point,
-	Gdiplus::Brush *brush, Gdiplus::Brush *brushOutline) {
+void CMapView::DrawStringWithShade(Gdiplus::Graphics* g, CStringW s, Gdiplus::Font* font, Gdiplus::PointF& point,
+	Gdiplus::Brush* brush, Gdiplus::Brush* brushOutline)
+{
 	g->DrawString(s.GetString(), s.GetLength(), font, point, brushOutline);
 	point.X -= 1.0f;
 	point.Y -= 1.0f;
@@ -18,14 +20,18 @@ void CMapView::DrawStringWithShade(Gdiplus::Graphics* g, CStringW s, Gdiplus::Fo
 // ****************************************************************
 //		FormatUnits()
 // ****************************************************************
-CStringW FormatUnits(CStringW& s, double step, double power, int count) {
-	if (power >= 1) {
-		s.Format(L"%d", (int)(step * count));
-	} else {
+CStringW FormatUnits(CStringW& s, double step, double power, int count)
+{
+	if (power >= 1)
+	{
+		s.Format(L"%d", static_cast<int>(step * count));
+	}
+	else
+	{
 		CStringW sFormat;
 		if (power == 0.0) power = -1;
-		sFormat.Format(L"%%.%df", (int)-power);
-		s.Format(sFormat, (float)step * count);
+		sFormat.Format(L"%%.%df", static_cast<int>(-power));
+		s.Format(sFormat, static_cast<float>(step) * count);
 	}
 	return s;
 }
@@ -34,9 +40,12 @@ CStringW FormatUnits(CStringW& s, double step, double power, int count) {
 //		ChooseScalebarUnits()
 // ****************************************************************
 void ChooseScalebarUnits(tkUnitsOfMeasure sourceUnits, tkUnitsOfMeasure& targetUnits, double distance,
-	double& unitsPerPixel, double& step, int& count, double& power) {
-	if (targetUnits == umMiles) {
-		if (distance < 1) {
+	double& unitsPerPixel, double& step, int& count, double& power)
+{
+	if (targetUnits == umMiles)
+	{
+		if (distance < 1)
+		{
 			targetUnits = umFeets;
 			unitsPerPixel *= 5280.0;		// feet in mile
 			distance *= 5280.0;
@@ -61,21 +70,21 @@ void ChooseScalebarUnits(tkUnitsOfMeasure sourceUnits, tkUnitsOfMeasure& targetU
 	// ----------------------------------------------------------
 	power = floor(log10(distance));
 	step = pow(10, floor(log10(distance)));
-	count = (int)floor(distance / step);
+	count = static_cast<int>(floor(distance / step));
 
 	if (count == 1) {
 		step /= 4;	// steps like 25-50-75
-		count = (int)floor(distance / step);
+		count = static_cast<int>(floor(distance / step));
 	}
 
 	if (count == 2) {
 		step /= 2;	// steps like 0-50-100
-		count = (int)floor(distance / step);
+		count = static_cast<int>(floor(distance / step));
 	}
 
 	if (count > 5) {
 		step *= 2.5;
-		count = (int)floor(distance / step);
+		count = static_cast<int>(floor(distance / step));
 	}
 }
 
@@ -85,19 +94,20 @@ void ChooseScalebarUnits(tkUnitsOfMeasure sourceUnits, tkUnitsOfMeasure& targetU
 void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 	if (!_scalebarVisible) return;
 
-	int barWidth = 140;
-	int barHeight = 30;
-	int yPadding = 10;
-	int xPadding = 10;
-	int xOffset = 20;
-	int yOffset = 10;
-	int segmHeight = 5;
+	constexpr int barWidth = 140;
+	constexpr int barHeight = 30;
+	constexpr int yPadding = 10;
+	constexpr int xPadding = 10;
+	constexpr int xOffset = 20;
+	constexpr int yOffset = 10;
+	constexpr int segmHeight = 5;
 
 	if (_viewWidth <= barWidth + xOffset || _viewHeight <= barHeight + yOffset)		// control must be big enough
 		return;
 
-	if (_transformationMode != tkTransformationMode::tmNotDefined) {
-		int zoom = GetCurrentZoom();
+	if (_transformationMode != tmNotDefined)
+	{
+		const int zoom = GetCurrentZoom();
 		if (zoom >= 0 && zoom < 3) {
 			// lsu: there are some problems with displaying scale bar at such zoom levels: 
 			// - there are areas outside the globe where coordinate transformations may fail;
@@ -143,7 +153,8 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 				}
 			}
 
-			if (!skipTransform) {
+			if (!skipTransform)
+			{
 				GetUtils()->GeodesicDistance((yMax + yMin) / 2, xMin, (yMax + yMin) / 2, xMax, &width);
 				_lastWidthMeters = width;
 				units = tkUnitsOfMeasure::umMeters;
@@ -160,15 +171,15 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 	// ----------------------------------------------------------
 	//    Choosing units
 	// ----------------------------------------------------------
-	double unitsPerPixel, unitsPerPixel2;
+	double unitsPerPixel2{};
 	double step, power; int count;
-	double step2, power2; int count2;
+	double step2{}, power2{}; int count2{};
 	double newWidth = width;
 
 	// metric calculations are performed for mixed mode as well
 	tkUnitsOfMeasure targetUnits = _scalebarUnits == American ? umMiles : umMeters;
 	Utility::ConvertDistance(units, targetUnits, newWidth);
-	unitsPerPixel = newWidth / (maxX - minX);	  // target units on screen size
+	double unitsPerPixel = newWidth / (maxX - minX);	  // target units on screen size
 	double distance = (barWidth - xPadding * 2) * unitsPerPixel;
 	ChooseScalebarUnits(units, targetUnits, distance, unitsPerPixel, step, count, power);
 
@@ -186,38 +197,41 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 	//    Initialize drawing
 	// ----------------------------------------------------------
 	Gdiplus::Matrix mtx;
-	mtx.Translate((float)5, (float)_viewHeight - barHeight - yOffset);
+	mtx.Translate(static_cast<float>(5), static_cast<float>(_viewHeight) - barHeight - yOffset);
 	g->SetTransform(&mtx);
-	Gdiplus::PixelOffsetMode pixelOffsetMode = g->GetPixelOffsetMode();
+	const Gdiplus::PixelOffsetMode pixelOffsetMode = g->GetPixelOffsetMode();
 	g->SetPixelOffsetMode(Gdiplus::PixelOffsetMode::PixelOffsetModeHighQuality);
 
-	Gdiplus::RectF rect(0.0f, 0.0f, (Gdiplus::REAL)barWidth, (Gdiplus::REAL)barHeight);
+	Gdiplus::RectF rect(0.0f, 0.0f, barWidth, barHeight);
 
 	// ----------------------------------------------------------
 	//    Drawing of segments
 	// ----------------------------------------------------------
 	std::vector<Gdiplus::Rect*> parts;
-	int length = (int)(step * count / unitsPerPixel + xPadding);
+	int length = static_cast<int>(step * count / unitsPerPixel + xPadding);
 
 	if (_scalebarUnits != GoogleStyle) {
 		// horizontal line
 		parts.push_back(new Gdiplus::Rect(xPadding, barHeight - yPadding, length - xPadding, 0));
 
 		// inner measures (shorter)
-		for (int i = 0; i <= count; i++) {
-			length = (int)(step * i / unitsPerPixel + xPadding);
-			int valHeight = (i == 0 || i == count) ? segmHeight * 2 : segmHeight;	// the height of the mark; side marks are longer
+		for (int i = 0; i <= count; i++)
+		{
+			length = static_cast<int>(step * i / unitsPerPixel + xPadding);
+			const int valHeight = i == 0 || i == count ? segmHeight * 2 : segmHeight;	// the height of the mark; side marks are longer
 			parts.push_back(new Gdiplus::Rect(length, barHeight - yPadding - valHeight, 0, valHeight));
 		}
-	} else {
-		int length2 = (int)(step2 * count2 / unitsPerPixel2 + xPadding);
+	}
+	else
+	{
+		const int length2 = static_cast<int>(step2 * count2 / unitsPerPixel2 + xPadding);
 
 		// horizontal line
 		parts.push_back(new Gdiplus::Rect(xPadding, barHeight / 2 - yPadding, length - xPadding, 0));
 		parts.push_back(new Gdiplus::Rect(xPadding, barHeight / 2 - yPadding, length2 - xPadding, 0));
 
 		// vertical lines for metric
-		int valHeight = segmHeight * 2;
+		const int valHeight = segmHeight * 2;
 		parts.push_back(new Gdiplus::Rect(xPadding, barHeight / 2 - yPadding - valHeight, 0, valHeight));
 		parts.push_back(new Gdiplus::Rect(length, barHeight / 2 - yPadding - valHeight, 0, valHeight));
 
@@ -226,17 +240,18 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 		parts.push_back(new Gdiplus::Rect(length2, barHeight / 2 - yPadding, 0, valHeight));
 	}
 
-	for(size_t i = 0; i < parts.size(); i++)				
+	for (size_t i = 0; i < parts.size(); i++)
 	{
 		g->FillRectangle(_brushWhite, parts[i]->X - 2, parts[i]->Y - 2, parts[i]->Width + 4, parts[i]->Height + 4);
 	}
 
-	for(size_t i = 0; i < parts.size(); i++)				
+	for (size_t i = 0; i < parts.size(); i++)
 	{
 		g->FillRectangle(_brushBlack, parts[i]->X - 1, parts[i]->Y - 1, parts[i]->Width + 2, parts[i]->Height + 2);
 	}
 
-	for (size_t i = 0; i < parts.size(); i++) {
+	for (size_t i = 0; i < parts.size(); i++)
+	{
 		delete parts[i];
 	}
 	parts.clear();
@@ -246,10 +261,10 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 	// ----------------------------------------------------------
 	//    Drawing of text
 	// ----------------------------------------------------------
-	Gdiplus::TextRenderingHint hint = g->GetTextRenderingHint();
+	const Gdiplus::TextRenderingHint hint = g->GetTextRenderingHint();
 	g->SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAliasGridFit);
 	Gdiplus::FontFamily family(L"Arial");
-	Gdiplus::REAL fontSize = _scalebarUnits != GoogleStyle ? 10.0f : 8.0f;
+	const Gdiplus::REAL fontSize = _scalebarUnits != GoogleStyle ? 10.0f : 8.0f;
 	Gdiplus::Font font(&family, fontSize, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint);
 	CStringW s;
 	Gdiplus::StringFormat format;
@@ -258,17 +273,17 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 		s.Format(L"0");
 		Gdiplus::PointF point(xPadding + 4.0f, -4.0f);
 		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
-			
+
 		// max
 		FormatUnits(s, step, power, count);
-		point.X = (Gdiplus::REAL)(step * count / unitsPerPixel + xPadding + 3 + 1.0f);
+		point.X = static_cast<Gdiplus::REAL>(step * count / unitsPerPixel + xPadding + 3 + 1.0f);
 		point.Y = -4.0f;
 		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
-			
+
 		// units
 		s = Utility::GetLocalizedUnitsText(targetUnits);
-		point.X = (Gdiplus::REAL)(step * count / unitsPerPixel + xPadding + 3 + 1.0f);
-		point.Y = (Gdiplus::REAL)(barHeight - yPadding - 12 + 1.0f);
+		point.X = static_cast<Gdiplus::REAL>(step * count / unitsPerPixel + xPadding + 3 + 1.0f);
+		point.Y = barHeight - yPadding - 12 + 1.0f;
 		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
 	}
 	else
@@ -278,7 +293,7 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 		s.Format(L"%s %s", FormatUnits(s, step, power, count), Utility::GetLocalizedUnitsText(targetUnits));
 		Gdiplus::PointF point(xPadding + 8.0f, -10.0f);
 		DrawStringWithShade(g, s, &font, point, _brushBlack, _brushWhite);
-			
+
 		// miles
 		s.Format(L"%s %s", FormatUnits(s, step2, power2, count2), Utility::GetLocalizedUnitsText(targetUnits2));
 		point.Y = 8.0f;
@@ -292,7 +307,8 @@ void CMapView::DrawScaleBar(Gdiplus::Graphics* g) {
 //		ShowRedrawTime()
 // ****************************************************************
 // Displays redraw time in the bottom right corner
-void CMapView::ShowRedrawTime(Gdiplus::Graphics* g, float time, bool layerRedraw, CStringW message) {
+void CMapView::ShowRedrawTime(Gdiplus::Graphics* g, float time, bool layerRedraw, CStringW message)
+{
 	_copyrightRect = Gdiplus::RectF(0.0f, 0.0f, 0.0f, 0.0f);
 
 	bool showRedrawTime = _showRedrawTime && time > 0.01 && !_isSnapshot;
@@ -438,7 +454,8 @@ void DrawGradientShadowForPath(Gdiplus::GraphicsPath& path, Gdiplus::Graphics* g
 // ****************************************************************
 //		DrawZoombar()
 // ****************************************************************
-void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
+void CMapView::DrawZoombar(Gdiplus::Graphics* g)
+{
 	if (!_zoombarVisible || _transformationMode == tmNotDefined)
 		return;
 
@@ -481,7 +498,7 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 	g->TranslateTransform(x, y);
 	DrawGradientShadowForPath(path, g);
 	g->FillPath(_brushWhite, &path);
-	g->DrawPath( highlight ? _penDarkGray : _penGray, &path);
+	g->DrawPath(highlight ? _penDarkGray : _penGray, &path);
 	g->SetTransform(&m);
 
 	// lower minus button
@@ -564,12 +581,13 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 			double resoultion = scale / 96.0 * 0.0254;	// meters per pixel
 
 			CStringW s;
-			switch (_zoomBarVerbosity) {
+			switch (_zoomBarVerbosity)
+			{
 			case zbvFull:
-				s.Format(L"缩放：%d\n比例尺：1:%.0f\n解析度：%.2f", zooming ? targetZoom : zoom, scale, resoultion);
+				s.Format(L"Zoom: %d\nScale: 1:%.0f\nResolution: %.2f", zooming ? targetZoom : zoom, scale, resoultion);
 				break;
 			case zbvZoomOnly:
-				s.Format(L"缩放：%d", zooming ? targetZoom : zoom);
+				s.Format(L"Zoom: %d", zooming ? targetZoom : zoom);
 				break;
 			}
 
@@ -582,7 +600,7 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 			g->FillRectangle(&tooltipBrush, tooltipBox);
 			g->DrawRectangle(_penGray, tooltipBox);
 			tooltipBox.Inflate(-9.0f, -5.0f);
-			g->DrawString(s, s.GetLength(), _fontArial, tooltipOrigin, _brushBlack );
+			g->DrawString(s, s.GetLength(), _fontArial, tooltipOrigin, _brushBlack);
 		}
 	}
 
@@ -596,7 +614,7 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 	Gdiplus::GraphicsPath path3;
 	path3.AddRectangle(line);
 	DrawGradientShadowForPath(path3, g);
-	
+
 	g->FillRectangle(_brushWhite, line);
 	g->DrawRectangle(highlight && !handleHighlight ? _penDarkGray : _penGray, line);
 
@@ -605,7 +623,8 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 	g->SetPixelOffsetMode(Gdiplus::PixelOffsetMode::PixelOffsetModeHighQuality);
 	float step = lineHeight / (maxZoom - minZoom);
 	float tempX = x + boxSize / 2.0f - lineWidth / 2.0f + 1;
-	for (int i = 1; i < maxZoom - minZoom; i++) {
+	for (int i = 1; i < maxZoom - minZoom; i++)
+	{
 		float tempY = (float)(int)(y + boxSize + lineOffset + step * i + 0.5);
 		g->FillRectangle(_brushGray, tempX, tempY, 4.0f, 1.0f);
 	}
@@ -640,7 +659,8 @@ void CMapView::DrawZoombar(Gdiplus::Graphics* g) {
 // ****************************************************************
 //		GetMinMaxZoom()
 // ****************************************************************
-bool CMapView::GetMinMaxZoom(int& minZoom, int& maxZoom) {
+bool CMapView::GetMinMaxZoom(int& minZoom, int& maxZoom)
+{
 	_tiles->get_MinZoom(&minZoom);
 	_tiles->get_MaxZoom(&maxZoom);
 
@@ -659,14 +679,17 @@ bool CMapView::GetMinMaxZoom(int& minZoom, int& maxZoom) {
 // ****************************************************************
 //		GetTileMismatchMinZoom()
 // ****************************************************************
-bool CMapView::GetTileMismatchMinZoom(int& minZoom) {
+bool CMapView::GetTileMismatchMinZoom(int& minZoom)
+{
 	VARIANT_BOOL sphericalMercator;
 	_tiles->get_ProjectionIsSphericalMercator(&sphericalMercator);
 
 	if (_tileProjectionState == ProjectionDoTransform && sphericalMercator) {
 		minZoom = m_globalSettings.tilesMaxZoomOnProjectionMismatch;
 		return true;
-	} else {
+	}
+	else
+	{
 		return false;
 	}
 }
